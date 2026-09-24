@@ -1,0 +1,106 @@
+<div class="pv">
+<style>
+.pv{color:var(--foreground);font-size:12.5px;line-height:1.55;max-width:860px}
+.pv *{box-sizing:border-box}
+.pv .band{margin:0 0 4px}
+.pv h4{margin:14px 0 6px;font-size:13px;color:var(--foreground)}
+.pv h4 small{color:var(--muted-foreground);font-weight:normal}
+.pv .row{display:flex;gap:8px;align-items:stretch}
+.pv .card{flex:1;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--card)}
+.pv .card b{display:block;font-size:12.5px}
+.pv .card .en{color:var(--muted-foreground);font-size:11px}
+.pv .card .d{margin-top:3px;color:var(--muted-foreground);font-size:11.5px}
+.pv .tag{display:inline-block;font-size:10px;border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px;border:1px solid}
+.t-raw{color:#a06a00;border-color:#d9a44133;background:#d9a44114}
+.t-done{color:#1c7a3d;border-color:#3d9a5c40;background:#3d9a5c14}
+.t-rule{color:#2860a8;border-color:#5c8ac240;background:#5c8ac214}
+.t-log{color:var(--muted-foreground);border-color:var(--border);background:transparent}
+.pv .arrow{text-align:center;color:var(--muted-foreground);font-size:11.5px;padding:2px 0}
+.pv .arrow b{color:var(--foreground)}
+.pv table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px}
+.pv th{ text-align:left;color:var(--muted-foreground);font-weight:normal;padding:3px 8px;border-bottom:1px solid var(--border)}
+.pv td{padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+.pv td:first-child{white-space:nowrap}
+.pv code{font:11px var(--mono,var(--font-mono,monospace));background:var(--card);border:1px solid var(--border);border-radius:4px;padding:0 4px}
+.pv .note{color:var(--muted-foreground);font-size:11px;margin-top:10px}
+</style>
+
+<div class="band">
+<h4>一句话总览 <small>—— 把 Codex 的记忆想象成一条中央厨房流水线</small></h4>
+<p style="margin:2px 0 8px">你每次和 Codex 聊天都在「点菜」；后台把吃过的菜做成<b>原料</b>（各种摘要），再统一<b>炒成一锅</b>（两个成品记忆文件），下次开新会话时自动端上来。</p>
+</div>
+
+<div class="band">
+<h4>① 三个来源 <small>（同时进行，互不相干）</small></h4>
+<div class="row">
+<div class="card"><b>你 ↔ Codex 的聊天</b><span class="tag t-log">会话日志</span>
+<div class="d">每次对话完整录下来，存为会话日志。英文叫 <b>rollout</b>＝一次会话/任务的完整记录。它本身不是记忆，是<b>记忆的原材料</b>。</div></div>
+<div class="card"><b>两个后台常驻进程</b><span class="tag t-raw">记忆素材</span>
+<div class="d"><b>Skysight</b>（内部代号，无官方译名）：汇总你电脑上的活动事件流；<b>Chronicle</b>（内部代号）：被动录屏。它们按 10 分钟/6 小时切片生成「活动摘要」，跟聊天无关，一直在录。</div></div>
+<div class="card"><b>你的明确要求</b><span class="tag t-raw">记忆素材</span>
+<div class="d">你说「记住 XX」时，模型才会当场写一张「补充/纠正笔记」（ad-hoc＝临时、专门为此写的）。它不能直接改记忆成品，只能塞纸条。</div></div>
+</div>
+</div>
+
+<div class="arrow">│ 聊天会话结束后<b>空闲满几小时</b>，后台才会动手 ↓</div>
+
+<div class="band">
+<h4>② 两级后台加工 <small>（都不占用聊天，模型聊天时自己碰不到）</small></h4>
+<div class="row">
+<div class="card"><b>第一阶段：逐会话提取</b><span class="en">stage1＝第一道工序</span><div class="d">每个会话日志 → 生成一份「<b>会话/任务回顾</b>」（rollout summary，角色=会话摘要）＋一份「<b>初步提取的记忆汇总</b>」（raw＝没加工的毛料，角色=整理输入）。</div></div>
+<div class="card"><b>第二阶段：全局整理</b><span class="en">consolidate＝合并整理</span><div class="d">把所有原料倒进一口锅：会话回顾＋初步提取＋Skysight/Chronicle 活动摘要＋补充笔记 → 炒出两个<b>成品</b>。</div></div>
+<div class="card"><b>加工说明书</b><span class="tag t-rule">处理规则</span><div class="d">「记忆扩展使用说明」（每个扩展目录里的 instructions.md）是写给整理流程看的：<b>哪些素材该怎么用、打什么标签</b>。它不是记忆内容，是规则。</div></div>
+</div>
+</div>
+
+<div class="arrow">│ 整理完成 ↓</div>
+
+<div class="band">
+<h4>③ 两个成品 <small>（整理后的记忆，只有这两个）</small></h4>
+<div class="row">
+<div class="card" style="border-color:#3d9a5c66"><b>记忆总览</b> <code>memory_summary.md</code><span class="tag t-done">成品·自动注入</span>
+<div class="d"><b>招牌拼盘，每桌必上</b>：新会话一打开就被截断塞进提示词，不管你问什么都带着。</div></div>
+<div class="card" style="border-color:#3d9a5c66"><b>记忆索引与经验</b> <code>MEMORY.md</code><span class="tag t-done">成品·按需翻查</span>
+<div class="d"><b>后厨大仓库</b>：全文长得多，模型按关键词去搜（grep），搜到哪条用哪条。</div></div>
+</div>
+</div>
+
+<div class="arrow">│ 下次新会话开始 ↓ <b>（循环回到①）</b></div>
+
+<div class="band">
+<h4>④ 回到聊天 <small>—— 闭环</small></h4>
+<div class="row">
+<div class="card"><div class="d"><b>记忆总览</b>自动出现在开场提示词里；不够用时模型再去<b>记忆索引</b>里搜；引用了哪条还会在回复末尾生成引用标注（citation＝出处标注），并给该条记一次「被使用」——被引用多的记忆更不容易被后台清掉。</div></div>
+</div>
+</div>
+
+<h4>你截图里那 8 项的归类对照</h4>
+<table>
+<tr><th>截图条目</th><th>本质</th><th>流水线位置</th><th>谁写的</th></tr>
+<tr><td>Skysight 活动摘要</td><td><span class="tag t-raw">记忆素材</span></td><td>原料（备用菜）</td><td>后台进程（录屏/事件流）</td></tr>
+<tr><td>Chronicle 工作活动摘要</td><td><span class="tag t-raw">记忆素材</span></td><td>原料（备用菜）</td><td>后台进程（同上，另一路）</td></tr>
+<tr><td>补充 / 纠正记忆的笔记</td><td><span class="tag t-raw">记忆素材</span></td><td>原料（你塞的纸条）</td><td>模型在聊天中（仅限你明确要求）</td></tr>
+<tr><td>Codex 会话 / 任务回顾</td><td><span class="tag t-raw">会话摘要</span></td><td>半成品（第一道工序产出）</td><td>后台第一道工序</td></tr>
+<tr><td>初步提取的记忆汇总</td><td><span class="tag t-raw">整理输入</span></td><td>毛料（第一道工序产出）</td><td>后台第一道工序</td></tr>
+<tr><td>记忆扩展使用说明</td><td><span class="tag t-rule">处理规则</span></td><td>说明书（不是菜）</td><td>扩展安装时附带</td></tr>
+<tr><td>Codex 记忆总览</td><td><span class="tag t-done">整理后的记忆</span></td><td>成品（自动注入）</td><td>后台第二道工序</td></tr>
+<tr><td>Codex 记忆索引与经验</td><td><span class="tag t-done">整理后的记忆</span></td><td>成品（按需搜索）</td><td>后台第二道工序</td></tr>
+</table>
+
+<h4>英文词对照</h4>
+<table>
+<tr><th>原文</th><th>意思</th></tr>
+<tr><td>rollout</td><td>一次会话/任务的完整记录（日志，不是记忆）</td></tr>
+<tr><td>stage1 / phase1</td><td>第一道工序：逐会话提取摘要</td></tr>
+<tr><td>consolidate / phase2（consolidation＝整理合并）</td><td>第二道工序：全局合并所有原料成两个成品</td></tr>
+<tr><td>raw（raw memories）</td><td>毛料/未加工的提取结果</td></tr>
+<tr><td>ad-hoc（note）</td><td>临时、专为此事写的（补充笔记）</td></tr>
+<tr><td>Skysight / Chronicle</td><td>两个后台感知功能的内部代号（活动事件流 / 被动录屏），官方无中文名</td></tr>
+<tr><td>summary（memory summary）</td><td>摘要/总览</td></tr>
+<tr><td>inject（injected into prompt）</td><td>注入＝自动塞进开场提示词</td></tr>
+<tr><td>grep</td><td>按关键词全文搜索</td></tr>
+<tr><td>citation</td><td>出处标注（回复末尾注明用了哪条记忆）</td></tr>
+</table>
+
+<p class="note">注：Skysight / Chronicle 是产品内部代号，官方文档未给中文名；其余术语均按含义翻译。两张成品图（总览、索引）每次被后台整理任务重写，你手动改它们没用——下一轮整理会覆盖；想补记忆应该写「补充笔记」，AgentAtlas 的来源徽标会告诉你每份文件具体是哪条流水线产的。</p>
+</div>

@@ -1,0 +1,935 @@
+{
+ "schemaVersion": 1,
+ "title": "Agent 文件类型与命名说明库",
+ "reviewedAt": "2026-09-23",
+ "notice": "这里记录文件类型的设计用途与命名约定，不证明软件正在运行、文件已被读取或某条记忆已生效。实际权限以文件服务为准，适用范围以记忆作用域说明为准。",
+ "sources": {
+  "local-skysight": {
+   "kind": "本机扩展声明",
+   "label": "Skysight 资源布局和使用约定",
+   "path": "~/.codex/memories/extensions/skysight/instructions.md",
+   "line": 3,
+   "checkedAt": "2026-09-23"
+  },
+  "local-chronicle": {
+   "kind": "本机扩展声明",
+   "label": "Chronicle 资源布局和使用约定",
+   "path": "~/.codex/memories/extensions/chronicle/instructions.md",
+   "line": 3,
+   "checkedAt": "2026-09-23"
+  },
+  "local-ad-hoc": {
+   "kind": "本机扩展声明",
+   "label": "补充笔记的整理约定；文件名只作本机样本记录",
+   "path": "~/.codex/memories/extensions/ad_hoc/instructions.md",
+   "line": 3,
+   "checkedAt": "2026-09-23"
+  },
+  "codex-memory": {
+   "kind": "官方源码",
+   "label": "OpenAI Codex 官方文档：Memories",
+   "url": "https://developers.openai.com/codex/customization/memories",
+   "checkedAt": "2026-09-23"
+  },
+  "computer-history": {
+   "kind": "官方文档",
+   "label": "Computer History：Skysight 存放路径及与 Chronicle 的关系",
+   "url": "https://learn.chatgpt.com/docs/customization/computer-history",
+   "checkedAt": "2026-09-23"
+  },
+  "local-skysight-reader": {
+   "kind": "本机已安装阅读器",
+   "label": "ChatGPT/Codex 26.917.51856：Bj 文件名正则与 tM UTC 窗口解析；1370 行连接 Skysight resources",
+   "path": "/Applications/ChatGPT.app/Contents/Resources/app.asar!/.vite/build/main-9ZiZs9Y1.js",
+   "line": 702,
+   "version": "26.917.51856",
+   "checkedAt": "2026-09-23"
+  },
+  "hermes-memory": {
+   "kind": "官方文档",
+   "label": "Hermes Persistent Memory",
+   "url": "https://hermes-agent.nousresearch.com/docs/user-guide/features/memory",
+   "checkedAt": "2026-09-22"
+  },
+  "hermes-pending": {
+   "kind": "本机源码",
+   "label": "记忆写入审批暂存",
+   "path": "~/.hermes/hermes-agent/tools/write_approval.py",
+   "line": 64,
+   "checkedAt": "2026-09-23"
+  },
+  "claude-memory": {
+   "kind": "官方文档",
+   "label": "Claude Code 自动记忆",
+   "url": "https://code.claude.com/docs/en/memory",
+   "checkedAt": "2026-09-22"
+  },
+  "openclaw-workspace": {
+   "kind": "官方文档",
+   "label": "OpenClaw Agent Workspace",
+   "url": "https://docs.openclaw.ai/concepts/agent-workspace",
+   "checkedAt": "2026-09-22"
+  },
+  "openclaw-index": {
+   "kind": "官方文档",
+   "label": "OpenClaw 内置记忆检索；旧路径不能证明当前绑定",
+   "url": "https://docs.openclaw.ai/concepts/memory-builtin",
+   "checkedAt": "2026-09-22"
+  },
+  "atlas-catalog": {
+   "kind": "本项目分类规则",
+   "label": "安全文件清单的类别定义，不等于平台运行契约",
+   "path": "atlas/catalog.py",
+   "line": 189,
+   "checkedAt": "2026-09-23"
+  },
+  "codex-doc-memories": {
+   "kind": "官方文档",
+   "label": "Codex Memories：本地记忆的生成、存储与配置",
+   "url": "https://developers.openai.com/codex/customization/memories",
+   "checkedAt": "2026-09-23"
+  },
+  "hermes-doc-memory": {
+   "kind": "官方文档",
+   "label": "Hermes Persistent Memory：MEMORY.md / USER.md 与 memory 工具",
+   "url": "https://hermes-agent.nousresearch.com/docs/user-guide/features/memory",
+   "checkedAt": "2026-09-23"
+  }
+ },
+ "filenameFormats": {
+  "activity": {
+   "label": "带时间窗口的活动摘要",
+   "pattern": "YYYY-MM-DDTHH-MM-SS-{4个字母}-{10min或6h}-{描述}.md",
+   "fields": {
+    "timestamp": {
+     "label": "时间标记",
+     "meaning": "文件名中的日期和时刻；不等于文件创建或修改时间。当前不单凭文件名认定时区或窗口起止点。"
+    },
+    "identifier": {
+     "label": "短标识",
+     "meaning": "四个字母的区分段，保留大小写。生成算法未核实，不能认定为哈希、用户ID或版本号。"
+    },
+    "window": {
+     "label": "摘要时间粒度",
+     "meaning": "10min 表示十分钟级摘要，6h 表示六小时级摘要；不是运行耗时、TTL 或保留期限。"
+    },
+    "slug": {
+     "label": "描述短名",
+     "meaning": "便于命名的描述。memory-summary 是通用短名，不是正文主题；它可以与文内中文 title 不同。"
+    },
+    "extension": {
+     "label": "格式",
+     "meaning": "Markdown 文本摘要，不是录屏视频或原始事件流。"
+    }
+   },
+   "examples": [
+    "2026-09-16T00-00-00-VRTL-6h-memory-summary.md",
+    "2026-09-16T00-10-00-CHvw-10min-memory-summary.md"
+   ],
+   "cautions": [
+    "这是本机 Skysight/Chronicle 扩展声明的布局，不是所有 Agent 共用的命名标准。",
+    "文件名未带 Z 或时区偏移，不将它自动换算为北京时间或 UTC。",
+    "标识符生成算法、时间标记是否严格对应窗口起点仍未核实。"
+   ]
+  },
+  "skysight": {
+   "label": "Skysight 已核实的本机阅读器约定",
+   "pattern": "YYYY-MM-DDTHH-MM-SS-{4个字母}-{10min或6h}-memory-summary.md",
+   "fields": {
+    "timestamp": {
+     "label": "窗口起点（UTC）",
+     "meaning": "已复核的本机阅读器补上 Z，按 UTC 解析为摘要窗口起点；不是文件创建或修改时间，也不是本地时区。"
+    },
+    "identifier": {
+     "label": "短标识",
+     "meaning": "扩展声明为四个字母，保留大小写。生成算法未核实，不能认定为哈希、用户ID或版本号。"
+    },
+    "window": {
+     "label": "摘要窗口长度",
+     "meaning": "本机阅读器分别加十分钟或六小时得到窗口终点；不是执行耗时、实际生成频率或保留期限。"
+    },
+    "slug": {
+     "label": "固定阅读器后缀",
+     "meaning": "声明允许描述性短名，但已复核的本机阅读器只接受 memory-summary。不要为了中文主题自行改这个文件名片段；主题可放在 frontmatter 的 title / description。"
+    },
+    "extension": {
+     "label": "格式",
+     "meaning": "Markdown 文本摘要，不是录屏视频或原始事件流。"
+    }
+   },
+   "examples": [
+    "2026-09-16T00-00-00-VRTL-6h-memory-summary.md",
+    "2026-09-16T00-10-00-CHvw-10min-memory-summary.md"
+   ],
+   "cautions": [
+    "UTC 和固定后缀来自已安装版本 26.917.51856 的实际阅读器，不是从无时区标记的文件名猜测。其他版本须重新核实。",
+    "VRTL / CHvw 的四字母生成算法仍未知。",
+    "本机声明给出更宽的 slug 格式；不同后缀在该阅读器返回不识别。本说明采用已复核的兼容格式，不重命名源文件。",
+    "解析文件名不证明文件仍存在、覆盖窗口中持续有活动或已经被某次会话读取。"
+   ]
+  },
+  "fixed": {
+   "label": "固定名称",
+   "pattern": "按类型约定的固定文件名",
+   "fields": {
+    "name": {
+     "label": "固定名称",
+     "meaning": "名称承担约定入口的作用，不携带时间或短标识。"
+    }
+   },
+   "examples": [],
+   "cautions": [
+    "同名不代表同一用途；还要匹配平台、类别与存放目录。"
+   ]
+  },
+  "opaque": {
+   "label": "未记录统一命名约定",
+   "pattern": "由对应软件或作者命名",
+   "fields": {},
+   "examples": [],
+   "cautions": [
+    "保留原文件名，不根据看似日期、UUID 或哈希的片段推断其真实含义。"
+   ]
+  },
+  "proposal": {
+   "label": "记忆修改提案 ID",
+   "pattern": "{8位小写十六进制ID}.json",
+   "fields": {
+    "identifier": {
+     "label": "提案短 ID",
+     "meaning": "本机实现取 UUID4 的十六进制串前八位；不是时间戳或记忆内容哈希。"
+    },
+    "extension": {
+     "label": "载荷格式",
+     "meaning": "JSON 审批提案，不是已生效的记忆正文。"
+    }
+   },
+   "examples": [
+    "1a2b3c4d.json"
+   ],
+   "cautions": [
+    "算法依据本机 tools/write_approval.py:64–85，其他版本需要复核。",
+    "此处不打开 JSON 载荷，也不判断提案当前是否待审批。"
+   ]
+  }
+ },
+ "types": [
+  {
+   "id": "codex.skysight.resource",
+   "label": "Skysight 活动摘要",
+   "role": "记忆素材",
+   "match": {
+    "platforms": [
+     "codex"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".codex/memories/extensions/skysight/resources/*.md"
+    ]
+   },
+   "purpose": "记录一段电脑活动的摘要，供记忆整理时选择相关信息；它不是已经写入最终长期记忆的证明。",
+   "producer": "Computer History 的后台活动摘要流程；官方说明其 Markdown 产物位于 skysight 扩展目录。",
+   "consumer": "Codex 后台记忆整理的候选输入；也可能由其他明确请求读取，不声明唯一消费者。",
+   "cautions": [
+    "是否启用、是否被整理或注入本次会话，目录和文件名都不能证明。",
+    "正文标题与文件名是不同字段，展示标题不会重命名磁盘文件。"
+   ],
+   "naming": "skysight",
+   "evidence": "官方设计 + 本机声明与阅读器 / 路径匹配",
+   "sources": [
+    "local-skysight",
+    "local-skysight-reader",
+    "computer-history",
+    "codex-doc-memories"
+   ],
+   "reviewedAt": "2026-09-23",
+   "generationMechanism": "由 Skysight 后台常驻进程（本机活动事件流）按 10 分钟 / 6 小时窗口切片自动生成，不经过聊天模型会话；后台记忆整理时作为证据素材读取。",
+   "loadingMechanism": "永不直接加载;仅作为后台整理的原料被消化。"
+  },
+  {
+   "id": "codex.chronicle.resource",
+   "label": "Chronicle 工作活动摘要",
+   "role": "记忆素材",
+   "match": {
+    "platforms": [
+     "codex"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".codex/memories/extensions/chronicle/resources/*.md"
+    ]
+   },
+   "purpose": "来自工作活动的时间段摘要；本机声明描述其来源包含后台录屏和插件信息。",
+   "producer": "Chronicle 扩展描述的活动摘要流程。",
+   "consumer": "后台记忆整理的候选输入，不证明当前扩展已启用或内容已被采纳。",
+   "cautions": [
+    "官方说明 Computer History 替代早期 Chronicle 研究预览，但它是重建的系统，不只是改名。",
+    "旧目录存在，不证明 Chronicle 仍在运行，也不证明旧文件已经迁移。"
+   ],
+   "naming": "activity",
+   "evidence": "官方设计 + 本机命名声明 / 路径匹配",
+   "sources": [
+    "local-chronicle",
+    "computer-history",
+    "codex-doc-memories"
+   ],
+   "reviewedAt": "2026-09-23",
+   "generationMechanism": "由 Chronicle 后台常驻进程（被动屏幕记录）按时间窗口切片自动生成，不经过聊天模型会话。",
+   "loadingMechanism": "永不直接加载;仅作为后台整理的原料被消化。"
+  },
+  {
+   "id": "codex.ad-hoc.note",
+   "label": "补充 / 纠正记忆的笔记",
+   "role": "记忆素材",
+   "match": {
+    "platforms": [
+     "codex"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".codex/memories/extensions/ad_hoc/notes/*.md"
+    ]
+   },
+   "purpose": "承载对记忆的补充、修改或删除意图，供后续整理流程考虑；不是最终记忆已修改的证明。",
+   "producer": "明确的记忆补充流程或维护者；不能仅凭目录确定具体写入者。",
+   "consumer": "Codex 后台整理流程参考新建或变更的笔记。",
+   "cautions": [
+    "本机可见带时区时间戳和紧凑日期等不同命名，未确认统一生成规范。"
+   ],
+   "naming": "opaque",
+   "evidence": "本机声明 / 路径匹配",
+   "sources": [
+    "local-ad-hoc",
+    "codex-doc-memories"
+   ],
+   "reviewedAt": "2026-09-23",
+   "generationMechanism": "由聊天模型在会话中经用户明确要求后，用 apply_patch 工具在 notes/ 目录新增一条笔记（文件名 <时间戳>-<短名>.md）；不直接改写正式记忆文件，由后台整理任务合并。",
+   "loadingMechanism": "不自动加载;写入后由后台整理消化,聊天中一般不再读取。"
+  },
+  {
+   "id": "codex.extension.instructions",
+   "label": "记忆扩展使用说明",
+   "role": "处理规则",
+   "match": {
+    "platforms": [
+     "codex"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".codex/memories/extensions/*/instructions.md"
+    ]
+   },
+   "purpose": "说明如何解释同一扩展目录下的输入材料。它被收在记忆目录中，但本身不是用户经历的摘要。",
+   "producer": "扩展的安装或维护流程。",
+   "consumer": "后台记忆整理流程读取对应扩展的说明；不能当成本应用执行任务的指令。",
+   "cautions": [
+    "说明文件存在，不证明扩展已运行或旁边的材料已被读取。"
+   ],
+   "naming": "fixed",
+   "evidence": "官方管线 / 路径匹配",
+   "sources": [
+    "codex-memory",
+    "codex-doc-memories"
+   ],
+   "reviewedAt": "2026-09-23",
+   "generationMechanism": "随记忆扩展一起落盘的静态声明文件，由扩展安装/更新过程写入，不是模型会话产物。",
+   "loadingMechanism": "聊天中不加载;仅后台整理任务读取以决定如何消化对应素材。"
+  },
+  {
+   "id": "codex.memory.summary",
+   "label": "Codex 记忆总览",
+   "role": "整理后的记忆",
+   "match": {
+    "platforms": [
+     "codex"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".codex/memories/memory_summary.md"
+    ]
+   },
+   "purpose": "精简总览与检索导航，帮助新任务了解已有背景并找到相关记忆。",
+   "producer": "Codex 记忆整理流程。",
+   "consumer": "启用对应记忆功能时的前台上下文；具体加载条件见作用域说明。",
+   "cautions": [
+    "它是摘要，不等于整个记忆目录的全文。"
+   ],
+   "naming": "fixed",
+   "evidence": "官方设计 / 路径匹配",
+   "sources": [
+    "codex-memory",
+    "codex-doc-memories"
+   ],
+   "reviewedAt": "2026-09-23",
+   "generationMechanism": "由后台全局整理任务（consolidation）汇总既有素材生成，会话结束后异步运行；模型聊天中不直接写它。",
+   "loadingMechanism": "每个新会话开场自动注入(截断至 2,500 tokens);不占检索。"
+  },
+  {
+   "id": "codex.memory.index",
+   "label": "Codex 记忆索引与经验",
+   "role": "整理后的记忆",
+   "match": {
+    "platforms": [
+     "codex"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".codex/memories/MEMORY.md"
+    ]
+   },
+   "purpose": "组织已经整理的任务经验、约定和相关来源，供按需检索。",
+   "producer": "记忆整理流程或明确授权的维护。",
+   "consumer": "Codex 在相关任务中检索有用部分，不表示每次全文注入。",
+   "cautions": [],
+   "naming": "fixed",
+   "evidence": "官方设计 / 路径匹配",
+   "sources": [
+    "codex-memory",
+    "codex-doc-memories"
+   ],
+   "reviewedAt": "2026-09-23",
+   "generationMechanism": "由后台全局整理任务（consolidation）汇总既有素材生成，会话结束后异步运行；模型聊天中不直接写它。",
+   "loadingMechanism": "不自动加载;模型判断相关后用关键词搜索(rg/grep)按需读取。"
+  },
+  {
+   "id": "codex.memory.raw",
+   "label": "初步提取的记忆汇总",
+   "role": "整理输入",
+   "match": {
+    "platforms": [
+     "codex"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".codex/memories/raw_memories.md",
+     ".codex/memories/phase2_workspace_diff.md"
+    ]
+   },
+   "purpose": "初步提取结果或本轮工作区变化，供进一步整理，不是最终长期记忆。",
+   "producer": "Codex 记忆写入管线。",
+   "consumer": "后台记忆整理任务的输入。",
+   "cautions": [
+    "后台输入不等于已被前台会话读取，也不声明它没有其他消费者。"
+   ],
+   "naming": "fixed",
+   "evidence": "官方设计 / 路径匹配",
+   "sources": [
+    "codex-memory",
+    "codex-doc-memories"
+   ],
+   "reviewedAt": "2026-09-23",
+   "generationMechanism": "由后台 stage1 提取任务按会话逐个生成，先入本地状态库再同步落盘。",
+   "loadingMechanism": "不自动加载;仅作为后台整理输入,聊天中一般不会读取。"
+  },
+  {
+   "id": "codex.rollout.summary",
+   "label": "Codex 会话 / 任务回顾",
+   "role": "会话摘要",
+   "match": {
+    "platforms": [
+     "codex"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".codex/memories/rollout_summaries/*.md"
+    ]
+   },
+   "purpose": "从一次任务执行中提炼成果、经验和依据；不是完整聊天原文。",
+   "producer": "Codex 记忆提取 / 整理流程。",
+   "consumer": "记忆整理及后续相关任务的按需检索。",
+   "cautions": [
+    "摘要来源于某个项目，不等于它只能作用于该项目。",
+    "本机常见时间标记、短标识、主题短名组合；尚未在说明库验证统一的命名生成器。"
+   ],
+   "naming": "opaque",
+   "evidence": "官方设计 / 路径匹配",
+   "sources": [
+    "codex-memory",
+    "codex-doc-memories"
+   ],
+   "reviewedAt": "2026-09-23",
+   "generationMechanism": "由后台 stage1 提取任务针对单个会话（rollout）生成；会话结束且空闲足够时间后异步运行，与聊天线程分离。",
+   "loadingMechanism": "不自动加载;模型从 MEMORY.md 目录页命中后按需打开 1–2 个。"
+  },
+  {
+   "id": "hermes.memory",
+   "label": "Hermes 常驻记忆",
+   "role": "正式记忆",
+   "match": {
+    "platforms": [
+     "hermes"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".hermes/memories/MEMORY.md",
+     ".hermes/profiles/*/memories/MEMORY.md"
+    ]
+   },
+   "purpose": "保存长期环境事实、约定与知识；区别于逐次会话历史。",
+   "producer": "经 memory 工具或授权维护写入。",
+   "consumer": "对应 Profile 启用内置记忆时的新会话快照。",
+   "cautions": [
+    "Profile 之间隔离；存放在这里不说明任意其他 Agent 会读取。"
+   ],
+   "naming": "fixed",
+   "evidence": "官方设计 / 路径匹配",
+   "sources": [
+    "hermes-memory",
+    "hermes-doc-memory"
+   ],
+   "reviewedAt": "2026-09-23",
+   "generationMechanism": "由模型在会话中通过 memory 工具（add / replace / remove）直接写入；另有每轮后的后台自我改进审查可能补充条目。写入立即落盘。",
+   "loadingMechanism": "每个会话开场自动注入(冻结快照);写入即时落盘。"
+  },
+  {
+   "id": "hermes.user",
+   "label": "Hermes 用户画像",
+   "role": "正式记忆",
+   "match": {
+    "platforms": [
+     "hermes"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".hermes/memories/USER.md",
+     ".hermes/profiles/*/memories/USER.md"
+    ]
+   },
+   "purpose": "保存用户身份、偏好与稳定的交互习惯，不是通用项目说明。",
+   "producer": "经 memory 工具或授权维护写入。",
+   "consumer": "对应 Profile 启用用户画像时的新会话快照。",
+   "cautions": [
+    "同名 USER.md 在其他软件中可能有不同加载规则。"
+   ],
+   "naming": "fixed",
+   "evidence": "官方设计 / 路径匹配",
+   "sources": [
+    "hermes-memory",
+    "hermes-doc-memory"
+   ],
+   "reviewedAt": "2026-09-23",
+   "generationMechanism": "由模型在会话中通过 memory 工具（add / replace / remove）直接写入用户画像；写入立即落盘。",
+   "loadingMechanism": "每个会话开场自动注入(冻结快照);写入即时落盘。"
+  },
+  {
+   "id": "hermes.memory.proposal",
+   "label": "待审批的记忆修改提案",
+   "role": "审批队列",
+   "match": {
+    "platforms": [
+     "hermes"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".hermes/pending/memory/*.json",
+     ".hermes/profiles/*/pending/memory/*.json"
+    ]
+   },
+   "purpose": "暂存需要审批的记忆修改请求，而不是正式记忆正文。",
+   "producer": "Hermes 记忆写入审批门。",
+   "consumer": "审批界面 / 审批流程；获批后才尝试写入正式记忆。",
+   "cautions": [
+    "本说明不读取提案载荷，不判断它当前的审批状态。"
+   ],
+   "naming": "proposal",
+   "evidence": "本机实现 / 路径匹配",
+   "sources": [
+    "hermes-pending",
+    "hermes-memory",
+    "hermes-doc-memory"
+   ],
+   "reviewedAt": "2026-09-23",
+   "generationMechanism": "开启 write_approval 后，模型通过 memory 工具的写入先落为待审批提案 JSON，由用户在界面批准后才合并进正式记忆文件。",
+   "loadingMechanism": "不自动注入;用户在界面审批后才合并进正式记忆。"
+  },
+  {
+   "id": "claude.memory.index",
+   "label": "Claude 项目自动记忆入口",
+   "role": "项目记忆",
+   "match": {
+    "platforms": [
+     "claude"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".claude/projects/*/memory/MEMORY.md"
+    ]
+   },
+   "purpose": "当前项目自动记忆的精简入口，连接到更具体的主题记忆。",
+   "producer": "Claude Code 自动记忆流程或维护者。",
+   "consumer": "启用对应功能时按平台预算加载；其他主题内容按需读取。",
+   "cautions": [
+    "不能将 projects 下的编码目录简单把横杠替换成斜杠反解成项目路径。"
+   ],
+   "naming": "fixed",
+   "evidence": "官方设计 / 路径匹配",
+   "sources": [
+    "claude-memory"
+   ],
+   "reviewedAt": "2026-09-22"
+  },
+  {
+   "id": "claude.memory.topic",
+   "label": "Claude 项目主题记忆",
+   "role": "项目记忆",
+   "match": {
+    "platforms": [
+     "claude"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".claude/projects/*/memory/*.md"
+    ]
+   },
+   "purpose": "按主题保存项目经验或偏好，供需要时读取。",
+   "producer": "Claude Code 或授权维护者。",
+   "consumer": "相关项目工作中的按需读取。",
+   "cautions": [
+    "文件名可能描述主题，但不能仅据名称认定适用项目。"
+   ],
+   "naming": "opaque",
+   "evidence": "官方设计 / 路径匹配",
+   "sources": [
+    "claude-memory"
+   ],
+   "reviewedAt": "2026-09-22"
+  },
+  {
+   "id": "openclaw.workspace.memory",
+   "label": "OpenClaw 工作区记忆 / 用户资料",
+   "role": "工作区记忆",
+   "match": {
+    "platforms": [
+     "openclaw"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".openclaw*/workspace*/MEMORY.md",
+     ".openclaw*/workspace*/USER.md"
+    ]
+   },
+   "purpose": "工作区中的长期记忆或用户资料；区别于状态目录中的数据库。",
+   "producer": "对应工作区的 Agent 或授权维护者。",
+   "consumer": "取决于工作区、会话类型与引导规则；共享场景不能据此推断会注入私人记忆。",
+   "cautions": [
+    "目录存在不代表它是当前活动工作区。"
+   ],
+   "naming": "fixed",
+   "evidence": "官方设计 / 路径匹配",
+   "sources": [
+    "openclaw-workspace"
+   ],
+   "reviewedAt": "2026-09-22"
+  },
+  {
+   "id": "openclaw.memory.database",
+   "label": "OpenClaw 记忆数据库候选",
+   "role": "检索存储",
+   "match": {
+    "platforms": [
+     "openclaw"
+    ],
+    "categories": [
+     "memory"
+    ],
+    "homePaths": [
+     ".openclaw*/memory/*.sqlite",
+     ".openclaw*/memory/*.sqlite3",
+     ".openclaw*/memory/*.db"
+    ]
+   },
+   "purpose": "按旧式存放路径识别的数据库文件，不是直接阅读的 Markdown 记忆正文。",
+   "producer": "对应版本的记忆检索后端。",
+   "consumer": "检索引擎；本工具不读取其表或直接编辑数据库。",
+   "cautions": [
+    "当前官方默认存储路径可能不同；旧 main.sqlite 是否仍被使用、内部存了什么，均未由路径核实。"
+   ],
+   "naming": "opaque",
+   "evidence": "路径候选，运行状态未知",
+   "sources": [
+    "openclaw-index"
+   ],
+   "reviewedAt": "2026-09-22"
+  },
+  {
+   "id": "codex.memory.skill",
+   "label": "Codex 记忆技能包",
+   "role": "记忆技能",
+   "match": {
+    "platforms": [
+     "codex"
+    ],
+    "categories": [
+     "memory",
+     "skill"
+    ],
+    "homePaths": [
+     ".codex/memories/skills/*/SKILL.md",
+     ".codex/memories/skills/*/scripts/*",
+     ".codex/memories/skills/*/templates/*.md",
+     ".codex/memories/skills/*/examples/*.md"
+    ]
+   },
+   "purpose": "沉淀可复用的操作流程（触发条件 + 输入 + 步骤 + 验证），让重复流程不必重新摸索；不是聊天上下文，也不是自动注入的记忆。",
+   "generationMechanism": "由后台整理任务（consolidation）在第二阶段从重复出现的流程中提炼生成：合并重复、只保留可验证的步骤；模型聊天中不直接创建。",
+   "producer": "Codex 后台整理流程（consolidation 模板第 3 节的技能生成规则）。",
+   "consumer": "后续会话按需读取：MEMORY.md 正文里的「Related skill: skills/<名称>/SKILL.md」指针指到这里；注入的记忆总览不含技能内容。",
+   "cautions": [
+    "与 ~/.codex/skills/（用户手装的全局技能）是两回事：这里是后台从会话中自动提炼的记忆技能。",
+    "frontmatter 含 disable-model-invocation: true 时，模型不会自主调用，须用户以斜杠命令触发。",
+    "SKILL.md 超 500 行视为违规；大段参考资料应放支撑文件。"
+   ],
+   "naming": "opaque",
+   "evidence": "官方整理模板 / 路径匹配",
+   "sources": [
+    "codex-doc-memories"
+   ],
+   "reviewedAt": "2026-09-23",
+   "loadingMechanism": "不自动注入;模型检索记忆时按需读取 SKILL.md,或用户以斜杠命令触发;MEMORY.md 正文有 Related skill 指针。"
+  },
+  {
+   "id": "category.instruction",
+   "label": "指令 / 规则文件",
+   "role": "行为约束",
+   "match": {
+    "categories": [
+     "instruction"
+    ]
+   },
+   "purpose": "规定 Agent 的工作方式或项目约定；具体加载位置和优先级依平台而异。",
+   "producer": "用户、项目维护者或平台。",
+   "consumer": "对应平台的上下文 / 指令加载器。",
+   "cautions": [
+    "被扫描到不表示一定生效，不能把所有平台混成同一继承链。"
+   ],
+   "naming": "opaque",
+   "evidence": "清单分类，非平台契约",
+   "sources": [
+    "atlas-catalog"
+   ],
+   "reviewedAt": "2026-09-23"
+  },
+  {
+   "id": "category.memory",
+   "label": "记忆类文件（具体用途未识别）",
+   "role": "用途待核实",
+   "match": {
+    "categories": [
+     "memory"
+    ]
+   },
+   "purpose": "清单将它归入记忆，但尚无专门的路径说明；可能是正文、素材、规则或其他产物。",
+   "producer": "尚未核实。",
+   "consumer": "尚未核实；不得据文件名假设自动注入。",
+   "cautions": [
+    "新增平台或非标准路径应先核实来源，再补充专门说明。"
+   ],
+   "naming": "opaque",
+   "evidence": "清单分类，非平台契约",
+   "sources": [
+    "atlas-catalog"
+   ],
+   "reviewedAt": "2026-09-23"
+  },
+  {
+   "id": "category.skill",
+   "label": "技能入口或技能配套文件",
+   "role": "可复用工作流程",
+   "match": {
+    "categories": [
+     "skill"
+    ]
+   },
+   "purpose": "封装某类任务的方法、约束或配套材料；不等于每轮都会加载全文。",
+   "producer": "技能作者或安装流程。",
+   "consumer": "平台的技能发现 / 加载机制，按实际平台规则使用。",
+   "cautions": [
+    "技能目录中的脚本和 SKILL.md 不是同一种载荷，是否可编辑仍由安全策略决定。"
+   ],
+   "naming": "opaque",
+   "evidence": "清单分类，非平台契约",
+   "sources": [
+    "atlas-catalog"
+   ],
+   "reviewedAt": "2026-09-23"
+  },
+  {
+   "id": "category.reference",
+   "label": "参考资料 / 技能附件",
+   "role": "按需材料",
+   "match": {
+    "categories": [
+     "reference"
+    ]
+   },
+   "purpose": "为某个任务或技能补充较详细的信息，通常由入口说明指向。",
+   "producer": "资料或技能作者。",
+   "consumer": "需要相关细节的任务；不能仅凭目录断言自动读取。",
+   "cautions": [],
+   "naming": "opaque",
+   "evidence": "清单分类，非平台契约",
+   "sources": [
+    "atlas-catalog"
+   ],
+   "reviewedAt": "2026-09-23"
+  },
+  {
+   "id": "category.command",
+   "label": "命令定义 / 命令材料",
+   "role": "任务入口",
+   "match": {
+    "categories": [
+     "command"
+    ]
+   },
+   "purpose": "定义某种显式命令或预设任务入口。",
+   "producer": "平台、插件或用户。",
+   "consumer": "命令分发机制；发现文件不等于已经执行命令。",
+   "cautions": [],
+   "naming": "opaque",
+   "evidence": "清单分类，非平台契约",
+   "sources": [
+    "atlas-catalog"
+   ],
+   "reviewedAt": "2026-09-23"
+  },
+  {
+   "id": "category.hook",
+   "label": "Hook 定义或处理脚本",
+   "role": "事件触发逻辑",
+   "match": {
+    "categories": [
+     "hook"
+    ]
+   },
+   "purpose": "在指定事件发生时参与处理；是否注册及何时触发由平台配置决定。",
+   "producer": "平台、插件或用户。",
+   "consumer": "对应事件系统；本工具不执行这些脚本。",
+   "cautions": [
+    "属于执行逻辑，不是可随意改写的记忆正文。"
+   ],
+   "naming": "opaque",
+   "evidence": "清单分类，非平台契约",
+   "sources": [
+    "atlas-catalog"
+   ],
+   "reviewedAt": "2026-09-23"
+  },
+  {
+   "id": "category.config",
+   "label": "非敏感配置文件",
+   "role": "运行配置",
+   "match": {
+    "categories": [
+     "config"
+    ]
+   },
+   "purpose": "记录运行选项或连接配置；含敏感字段的文件被安全清单排除。",
+   "producer": "配置界面、平台或用户。",
+   "consumer": "相应配置加载器；配置文件不是提示词正文。",
+   "cautions": [
+    "只读展示；不读取凭证文件，不承诺任意文本都绝无秘密。"
+   ],
+   "naming": "opaque",
+   "evidence": "清单分类，非平台契约",
+   "sources": [
+    "atlas-catalog"
+   ],
+   "reviewedAt": "2026-09-23"
+  },
+  {
+   "id": "category.session",
+   "label": "会话记录 / 会话存储",
+   "role": "历史记录",
+   "match": {
+    "categories": [
+     "session"
+    ]
+   },
+   "purpose": "记录对话、任务执行或会话状态；不是已整理的长期记忆。",
+   "producer": "平台会话持久化流程。",
+   "consumer": "恢复、回顾、检索或分析；具体字段和格式依平台而异。",
+   "cautions": [
+    "数据库条目只保留元数据；会话和日志不允许直接编辑。"
+   ],
+   "naming": "opaque",
+   "evidence": "清单分类，非平台契约",
+   "sources": [
+    "atlas-catalog"
+   ],
+   "reviewedAt": "2026-09-23"
+  },
+  {
+   "id": "category.log",
+   "label": "运行 / 调试日志",
+   "role": "运行观测",
+   "match": {
+    "categories": [
+     "log"
+    ]
+   },
+   "purpose": "记录事件、错误或诊断信息，与会话摘要和长期记忆不同。",
+   "producer": "平台或进程的日志系统。",
+   "consumer": "排障和观测流程；不表示自动作为记忆注入。",
+   "cautions": [
+    "只读，可能含私人上下文。"
+   ],
+   "naming": "opaque",
+   "evidence": "清单分类，非平台契约",
+   "sources": [
+    "atlas-catalog"
+   ],
+   "reviewedAt": "2026-09-23"
+  },
+  {
+   "id": "category.other",
+   "label": "其他已发现文本",
+   "role": "尚未细分",
+   "match": {
+    "categories": [
+     "other"
+    ]
+   },
+   "purpose": "已进入安全文件清单，但没有更具体的类型或用途说明。",
+   "producer": "尚未核实。",
+   "consumer": "尚未核实。",
+   "cautions": [
+    "根据可靠证据补充专门规则，而不是由后缀猜用途。"
+   ],
+   "naming": "opaque",
+   "evidence": "清单分类，非平台契约",
+   "sources": [
+    "atlas-catalog"
+   ],
+   "reviewedAt": "2026-09-23"
+  }
+ ]
+}

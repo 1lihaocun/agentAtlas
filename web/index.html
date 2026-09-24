@@ -1,0 +1,2581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentAtlas · 智能体文件库</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --ink: #1c1c1a; --muted: #71716c;
+    --border: #e4e4df; --accent: #2f6f4f; --accent-ink: #ffffff;
+    --danger: #b3402e; --warn: #9a6b16; --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font: 14px/1.55 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+         background: var(--bg); color: var(--ink); height: 100vh; display: flex;
+         flex-direction: column; overflow: hidden; }
+  button { font: inherit; cursor: pointer; }
+
+  header { display: flex; align-items: center; gap: 14px; padding: 10px 18px;
+           background: var(--panel); border-bottom: 1px solid var(--border); z-index: 5; flex-shrink: 0; }
+  header h1 { font-size: 16px; font-weight: 700; letter-spacing: .2px; white-space: nowrap; flex-shrink: 0; }
+  header .btn { white-space: nowrap; flex-shrink: 0; }
+  header h1 span { color: var(--muted); font-weight: 400; font-size: 12.5px; margin-left: 8px; }
+  header .spacer { flex: 1; }
+  #hostinfo { color: var(--muted); font-size: 12px; max-width: 200px; min-width: 0;
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #search { width: clamp(170px, 22vw, 320px); padding: 6px 10px; border: 1px solid var(--border);
+            border-radius: 7px; background: var(--bg); font: inherit; }
+  #search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .btn { padding: 6px 13px; border: 1px solid var(--border); border-radius: 7px;
+         background: var(--panel); color: var(--ink); }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover { opacity: .88; color: var(--accent-ink); }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+
+  /* ---------- 访达式侧边栏 ---------- */
+  #sidebar { width: 248px; flex-shrink: 0; overflow-y: auto; overflow-x: hidden;
+             background: #f1f1ee; border-right: 1px solid var(--border);
+             padding: 10px 8px 24px; transition: width .18s ease, padding .18s ease; }
+  body.sb-collapsed #sidebar { width: 0; min-width: 0; padding-left: 0; padding-right: 0;
+                               border-right-color: transparent; }
+  .sb-rail { width: 22px; flex-shrink: 0; border-right: 1px solid var(--border);
+             background: #f1f1ee; display: none; align-items: flex-start;
+             justify-content: center; padding-top: 12px; cursor: pointer;
+             color: var(--muted); font-size: 11px; user-select: none; }
+  .sb-rail:hover { color: var(--accent); }
+  body.sb-collapsed .sb-rail { display: flex; }
+  .icon-btn { padding: 4px 9px; font-size: 13px; line-height: 1.2; }
+  #sidebar .sec { font-size: 11px; font-weight: 700; color: var(--muted);
+                  text-transform: uppercase; letter-spacing: .6px; padding: 10px 10px 4px; }
+  .nav-item { display: flex; align-items: center; gap: 7px; padding: 5px 10px;
+              border-radius: 7px; cursor: pointer; font-size: 13px; color: var(--ink);
+              user-select: none; }
+  .nav-item:hover { background: #e7e7e2; }
+  .nav-item.active { background: var(--accent); color: var(--accent-ink); }
+  .nav-item.active .nav-count { color: #d8e8df; }
+  .nav-item .nav-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-item .nav-count { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .nav-item.danger .nav-name { color: var(--warn); }
+  .nav-item.danger.active { background: var(--warn); color: #fff; }
+  .nav-item.danger.active .nav-name { color: #fff; }
+  .nav-item.danger.active .nav-count { color: #f4e8d2; }
+  .nav-caret { width: 14px; text-align: center; color: var(--muted); font-size: 10px;
+               cursor: pointer; flex-shrink: 0; transition: transform .12s; }
+  .nav-caret.open { transform: rotate(90deg); }
+  .nav-kids { margin-left: 15px; border-left: 1px solid var(--border); padding-left: 4px; display: none; }
+  .nav-kids.open { display: block; }
+
+  /* ---------- 内容区 ---------- */
+  #content-wrap { flex: 1; min-width: 0; overflow-y: auto; padding: 14px 18px 40px; }
+  #crumb { font-size: 12.5px; color: var(--muted); padding: 0 2px 10px;
+           display: flex; align-items: center; gap: 8px; }
+  .back-btn { padding: 2px 10px !important; font-size: 14px; line-height: 1.2; }
+  #crumb .cb-inner { display: flex; align-items: center; min-width: 0; }
+  #crumb a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  #crumb a:hover { text-decoration: underline; }
+  #crumb .sep { margin: 0 6px; color: var(--border); }
+
+  #stats { display: flex; gap: 26px; padding: 2px 2px 14px; flex-wrap: wrap; }
+  #stats .stat b { display: block; font-size: 19px; font-weight: 700; color: var(--ink); }
+  #stats .stat { font-size: 12px; color: var(--muted); }
+  #stats .stat.dupe b { color: var(--warn); }
+
+  .root { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+          margin-bottom: 12px; overflow: hidden; }
+  .root > summary { padding: 11px 16px; cursor: pointer; display: flex; align-items: baseline;
+                    gap: 12px; list-style: none; user-select: none; }
+  .root > summary::-webkit-details-marker { display: none; }
+  .root > summary:hover { background: #fafaf8; }
+  .root > summary .rname { font-weight: 700; font-size: 15px; }
+  .root > summary .rmeta { color: var(--muted); font-size: 12px; }
+  .root > summary .rcount { margin-left: auto; font-size: 12px; color: var(--muted);
+                            font-variant-numeric: tabular-nums; }
+  .proj-list { border-top: 1px solid var(--border); }
+  .proj { border-bottom: 1px solid var(--border); }
+  .proj:last-child { border-bottom: 0; }
+  .proj > summary { padding: 9px 16px 9px 30px; cursor: pointer; display: flex; gap: 12px;
+                    align-items: baseline; list-style: none; user-select: none; }
+  .proj > summary::-webkit-details-marker { display: none; }
+  .proj > summary:hover { background: #fafaf8; }
+  .proj > summary .pname { font-weight: 600; }
+  .proj > summary .pmeta { color: var(--muted); font-size: 12px; }
+  .proj-body { padding: 4px 16px 14px 30px; }
+
+  table.ft { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.ft td { padding: 5px 8px 5px 0; border-top: 1px dashed var(--border); }
+  table.ft tr:first-child td { border-top: 0; }
+  table.ft td.path { font-family: var(--mono); font-size: 11.5px; word-break: break-all; }
+  table.ft td.sz { text-align: right; color: var(--muted); white-space: nowrap;
+                   font-variant-numeric: tabular-nums; padding-right: 14px; }
+  table.ft tr.file-row { cursor: pointer; }
+  table.ft tr.file-row:hover td.path { color: var(--accent); }
+
+  .tag { display: inline-block; font-size: 10.5px; font-weight: 600; border-radius: 5px;
+         padding: 1px 6px; margin-right: 6px; letter-spacing: .3px; }
+  .t-agents { background: #e5efe9; color: #245c40; }
+  .t-claude  { background: #f3e8d7; color: #7a5416; }
+  .t-gemini  { background: #e3e9f7; color: #3a55a0; }
+  .t-qwen    { background: #ece5f5; color: #5f3d99; }
+  .t-cursor-rule, .t-cursor-legacy { background: #f0e9e0; color: #7c5a2e; }
+  .t-windsurf{ background: #e2f0ee; color: #22635c; }
+  .t-cline   { background: #eee6ee; color: #6d3d6d; }
+  .t-copilot { background: #e8e8ee; color: #454569; }
+  .t-other   { background: #ececea; color: #5c5c58; }
+  .dup { font-size: 10.5px; color: var(--warn); font-weight: 600; }
+  .dup-link { cursor: pointer; border-bottom: 1px dotted var(--warn); }
+  .dup-link:hover { color: var(--danger); }
+  .tr-badge { display: inline-block; font-size: 10px; font-weight: 700; color: #2b6cb0;
+              background: #e3effa; border-radius: 4px; padding: 1px 5px; margin-left: 3px;
+              cursor: pointer; vertical-align: 1px; }
+  .tr-badge:hover { background: #cde2f7; color: #1a4e85; }
+  .use-badge { display: inline-block; font-size: 10px; font-weight: 600; color: #6b7280;
+               background: #f0f0ec; border-radius: 4px; padding: 1px 5px; margin-left: 3px; }
+  #reads-pop { position: fixed; z-index: 65; display: none; background: var(--panel);
+               border: 1px solid var(--border); border-radius: 10px;
+               box-shadow: 0 12px 34px rgba(0,0,0,.16); padding: 12px 14px;
+               width: min(720px, 92vw); }
+  #reads-pop.open { display: block; }
+  .rs-session { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; padding: 8px 10px; }
+  .rs-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 4px; font-size: 12px; }
+  .rs-resume { font-family: var(--mono); font-size: 10.5px; color: var(--accent); cursor: pointer;
+               padding: 2px 0; word-break: break-all; }
+  .rs-resume:hover { text-decoration: underline; }
+  .rs-hit { display: flex; gap: 10px; align-items: baseline; padding: 2px 0;
+            border-top: 1px dashed var(--border); font-size: 11px; }
+  .rs-kind { font-size: 11px; color: var(--ink); min-width: 110px; }
+  .rs-kind.hot { color: #166534; font-weight: 600; }
+  #tip { position: fixed; z-index: 70; display: none; max-width: 420px;
+         background: #2f2f2c; color: #f4f4ef; font-size: 11.5px; line-height: 1.5;
+         border-radius: 6px; padding: 6px 10px; pointer-events: none;
+         box-shadow: 0 6px 18px rgba(0,0,0,.25); white-space: pre-wrap; }
+  .use-badge.hot { color: #166534; background: #e5f3e8; }
+  .use-badge.cold { color: #9a9a92; background: transparent; border: 1px dashed var(--border); }
+  /* 组件视图 */
+  .sec-list { flex: 1; overflow-y: auto; padding: 10px 12px; background: #fff; }
+  .sec-item { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px;
+              background: var(--panel); }
+  .sec-item > summary { list-style: none; display: flex; align-items: center; gap: 8px;
+                        padding: 8px 12px; cursor: pointer; }
+  .sec-item > summary::-webkit-details-marker { display: none; }
+  .sec-item > summary:hover { background: #f4f4ef; border-radius: 8px; }
+  .sec-hl { font-size: 10.5px; font-weight: 700; color: #8a8a82;
+            background: #edece6; border-radius: 4px; padding: 1px 6px; flex-shrink: 0; }
+  .sec-title { font-size: 12.5px; font-weight: 600; flex: 1; min-width: 0;
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sec-chars { font-size: 10.5px; color: var(--muted); flex-shrink: 0; }
+  .sec-body { border-top: 1px dashed var(--border); }
+  .sec-body textarea { width: 100%; border: 0; resize: vertical; min-height: 120px;
+                       padding: 10px 12px; font: 11.5px/1.6 var(--mono); color: var(--ink);
+                       background: #fff; box-sizing: border-box; }
+  .sec-body textarea:focus { outline: none; }
+  .sec-actions { display: flex; gap: 8px; padding: 8px 12px; align-items: center; }
+  .sec-actions .vmsg { flex: 1; min-height: 0; }
+  #dup-pop { position: fixed; z-index: 60; display: none; background: var(--panel);
+             border: 1px solid var(--border); border-radius: 10px;
+             box-shadow: 0 12px 34px rgba(0,0,0,.16); padding: 10px 12px;
+             width: max-content; max-width: min(560px, 90vw); }
+  #dup-pop.open { display: block; }
+  #dup-pop .dp-head { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  #dup-pop .dp-row { font-family: var(--mono); font-size: 11px; color: var(--accent);
+                     cursor: pointer; padding: 3px 0; word-break: break-all; }
+  #dup-pop .dp-row:hover { text-decoration: underline; }
+  #dup-pop .dp-foot { font-size: 10.5px; color: var(--muted); margin-top: 8px;
+                      border-top: 1px dashed var(--border); padding-top: 6px; }
+  .wt-badge { display: inline-block; font-size: 10px; font-weight: 700; color: #7c7c76;
+              border: 1px solid var(--border); border-radius: 4px; padding: 0 4px;
+              margin-left: 2px; letter-spacing: .3px; }
+  .empty-flag { font-size: 10.5px; color: var(--danger); font-weight: 600; }
+
+  .dupbox { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+            margin-bottom: 12px; }
+  .dupbox > summary { padding: 10px 16px; cursor: pointer; font-weight: 600; list-style: none; }
+  .dupbox > summary::-webkit-details-marker { display: none; }
+  .dupbox .dup-body { padding: 0 16px 14px; font-size: 12px; }
+  .dupbox .dup-body .g { margin-bottom: 10px; }
+
+  #notice { color: var(--muted); font-size: 12.5px; padding: 0 2px 10px; display: none; }
+
+  /* ---------- 结构图视图 ---------- */
+  .viewbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .viewbar .vb-label { font-size: 12px; color: var(--muted); }
+  .vbtn { padding: 4px 12px; border: 1px solid var(--border); background: var(--panel);
+          border-radius: 6px; font-size: 12.5px; color: var(--ink); }
+  .vbtn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .vb-hint { font-size: 11.5px; color: var(--muted); }
+  .graph-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+                overflow: auto; max-height: calc(100vh - 210px); }
+  .gedge { fill: none; stroke: #d9d9d2; stroke-width: 1.5; }
+  .gnode rect { fill: #f4f4f0; stroke: var(--border); }
+  .gnode.dir > text { font-weight: 600; fill: #4a4a45; }
+  .gnode.file rect { fill: #ffffff; stroke: #c9dcd1; cursor: pointer; }
+  .gnode.file:hover rect { stroke: var(--accent); stroke-width: 2; }
+  .gnode text { font-family: var(--mono); font-size: 11.5px; fill: var(--ink); }
+  /* ---------- 右侧查看/编辑面板 ---------- */
+  #viewer { width: 470px; flex-shrink: 0; border-left: 1px solid var(--border);
+            background: var(--panel); display: none; flex-direction: column; position: relative; }
+  #viewer.open { display: flex; }
+  .v-resize { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px;
+              cursor: col-resize; z-index: 10; }
+  .v-resize:hover, body.resizing .v-resize { background: var(--accent); opacity: .35; }
+  body.resizing { user-select: none; cursor: col-resize; }
+  #viewer .vhead { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  #viewer .vpath { font-family: var(--mono); font-size: 11.5px; word-break: break-all; color: var(--muted); }
+  #viewer .vtitle { font-weight: 700; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
+  #viewer textarea { flex: 1; width: 100%; border: 0; resize: none;
+                     padding: 12px; font: 12px/1.6 var(--mono); color: var(--ink);
+                     background: #fcfcfb; }
+  #viewer textarea:focus { outline: none; background: #fff; }
+  #viewer .vfoot { padding: 9px 12px; border-top: 1px solid var(--border);
+                   display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  #v-msg { flex-basis: 100% !important; }
+  #viewer .vmsg { flex: 1; font-size: 12px; color: var(--muted); min-height: 16px; }
+  #viewer .vmsg.err { color: var(--danger); }
+  /* 翻译视图：译文主栏 + 原文参考栏，中间拖动条可调比例 */
+  #v-text.tr-hidden { display: none; }
+  .tr-view { flex: 1; display: flex; min-width: 0; background: #fff; }
+  .tr-main { flex: 0 0 58%; min-width: 0; overflow-y: auto; padding: 12px 14px;
+             font: 13px/1.75 -apple-system, "PingFang SC", sans-serif; color: var(--ink); }
+  .tr-split { flex: 0 0 7px; cursor: col-resize; border-left: 1px solid var(--border);
+              background: transparent; }
+  .tr-split:hover, .tr-split.on { background: var(--accent); opacity: .4; }
+  .tr-side { flex: 1; min-width: 0; overflow-y: auto; padding: 12px 14px; background: #fafaf7;
+             font: 11.5px/1.65 var(--mono); color: #55554f;
+             white-space: pre-wrap; word-break: break-word; }
+  .tr-view .tr-dst { white-space: pre-wrap; word-break: break-word; }
+  .tr-view .tr-label { font-size: 11px; font-weight: 700; color: var(--muted);
+                       letter-spacing: .5px; margin: 8px 0 4px; }
+  .tr-view .tr-status { flex: 1; padding: 24px 10px; text-align: center; color: var(--muted); font-size: 12.5px; }
+  .tr-view .tr-status.err { color: var(--danger); }
+  .tr-lang { padding: 5px 8px; font-size: 12px; border: 1px solid var(--border);
+             border-radius: 6px; background: var(--panel); color: var(--ink); }
+
+  @media (max-width: 1080px) {
+    #sidebar { width: 190px; }
+    #viewer { width: 360px; }
+  }
+
+  /* ---------- 文件库 / 检索 ---------- */
+  #search-form, .asset-toolbar, .asset-pagination { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #asset-tools { margin-bottom: 12px; }
+  [hidden] { display: none !important; }
+  .asset-toolbar select { max-width: 220px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); font: inherit; }
+  .visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important;
+    padding: 0 !important; margin: -1px !important; overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
+  .atlas-select { position: relative; display: inline-block; min-width: 120px; max-width: 220px;
+    color: var(--ink); vertical-align: middle; flex: 0 0 auto; }
+  .atlas-select.wide { min-width: 152px; }
+  .atlas-select.compact { min-width: 94px; max-width: 120px; }
+  .atlas-select-trigger { width: 100%; height: 32px; display: flex; align-items: center;
+    justify-content: space-between; gap: 10px; padding: 0 10px; border: 1px solid var(--border);
+    border-radius: 7px; background: var(--panel); color: var(--ink); font: inherit; text-align: left; }
+  .atlas-select-trigger:hover, .atlas-select-trigger[aria-expanded="true"] { border-color: var(--accent); }
+  .atlas-select-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .atlas-select-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .atlas-select-caret { width: 7px; height: 7px; border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px);
+    color: var(--muted); transition: transform .15s ease; flex-shrink: 0; }
+  .atlas-select-trigger[aria-expanded="true"] .atlas-select-caret { transform: rotate(225deg) translate(-1px, -1px); }
+  .atlas-select-menu { position: absolute; z-index: 80; top: calc(100% + 5px); left: 0;
+    width: max-content; min-width: 100%; max-width: min(420px, calc(100vw - 24px)); max-height: 280px;
+    overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 4px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--panel); box-shadow: 0 8px 24px rgba(28, 28, 26, .16); }
+  .atlas-select-menu::-webkit-scrollbar { width: 9px; height: 9px; }
+  .atlas-select-menu::-webkit-scrollbar-thumb { background: #c9c9c3; border: 2px solid var(--panel); border-radius: 999px; }
+  .atlas-select-menu::-webkit-scrollbar-track { background: transparent; }
+  .atlas-select-menu.resizable { resize: both; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
+  .atlas-select-menu.open-up { top: auto; bottom: calc(100% + 5px); }
+  .atlas-select-option { width: max-content; min-width: 100%; min-height: 32px; display: grid;
+    grid-template-columns: 16px max-content; align-items: center; gap: 4px;
+    padding: 5px 8px; border: 0; border-radius: 6px; background: transparent;
+    color: var(--ink); font: inherit; text-align: left; white-space: nowrap; }
+  .atlas-select-option > span:last-child { overflow: visible; text-overflow: clip; }
+  .atlas-select-option:hover, .atlas-select-option:focus-visible { background: #f1f1ee; outline: none; }
+  .atlas-select-option[aria-selected="true"] { color: var(--accent); background: #edf4ef; font-weight: 600; }
+  .atlas-select-option:disabled { color: var(--muted); opacity: .55; cursor: default; }
+  .atlas-select-check { visibility: hidden; font-size: 12px; line-height: 1; }
+  .atlas-select-option[aria-selected="true"] .atlas-select-check { visibility: visible; }
+  .asset-toolbar label { font-size: 12px; color: var(--muted); }
+  .asset-hint, #index-status { font-size: 12px; color: var(--muted); margin-top: 7px; }
+  .asset-pagination { padding: 10px 0 2px; font-size: 12px; color: var(--muted); }
+  .asset-table th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 500; padding-bottom: 7px; }
+  .asset-table td { vertical-align: top; }
+  .asset-path { font-size: 10.5px; color: var(--muted); overflow-wrap: anywhere; }
+  .asset-meta { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .asset-snippet { white-space: pre-wrap; overflow-wrap: anywhere; font: 11.5px/1.6 var(--mono); margin: 5px 0; }
+  .asset-snippet mark { background: #fff0b3; color: inherit; }
+  .asset-file { background: none; border: 0; color: inherit; font: inherit; padding: 0; text-align: left; cursor: pointer; }
+  .asset-file:hover { color: var(--accent); text-decoration: underline; }
+  #memory-tools { margin-bottom: 12px; }
+  .memory-viewbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; font-size: 12px; }
+  .memory-viewbar .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--panel); }
+  .memory-folder { width: 100%; display: flex; align-items: center; gap: 12px; padding: 11px 16px; text-align: left; border: 0; border-top: 1px solid var(--border); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+  .memory-folder:hover { background: var(--bg); }
+  .memory-folder-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font: 12px var(--mono); }
+  .memory-folder-count { flex-shrink: 0; color: var(--muted); font-size: 11px; }
+  .memory-tree-name { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .memory-tree-caret { border: 0; background: transparent; color: var(--muted); padding: 2px; cursor: pointer; font-size: 9px; }
+  .memory-dir-heading { display: flex; align-items: center; gap: 10px; margin: 14px 0 7px; font-size: 12px; font-weight: 600; }
+  .memory-breadcrumb { border: 0; padding: 0; background: transparent; color: var(--accent); font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+  #memory-search { width: clamp(180px, 22vw, 320px); padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: var(--panel); }
+  .memory-entry { padding: 7px 16px; border-top: 1px solid var(--border); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; }
+  .memory-head { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px 12px; flex-wrap: wrap; min-width: 0; }
+  .memory-head .asset-file, .memory-head b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .memory-head .asset-meta { margin-left: auto; white-space: normal; font-size: 11px; }
+  .memory-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 10.5px/1.6 var(--mono); color: var(--muted); }
+  .memory-details[open] { grid-column: 1 / -1; }
+  .memory-details > summary { text-align: right; }
+  .memory-details[open] > summary { text-align: left; }
+  .memory-facts { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 3px 12px; margin: 7px 0; font-size: 12px; }
+  .memory-facts dt { color: var(--muted); }
+  .memory-facts dd { margin: 0; overflow-wrap: anywhere; white-space: pre-line; }
+  #v-memory { margin-top: 8px; font-size: 12px; }
+  #v-memory > summary { cursor: pointer; color: var(--accent); }
+  #viewer .vhead:has(#v-memory[open]) { max-height: 55vh; overflow-y: auto; flex-shrink: 0; }
+  .memory-entry details > summary { cursor: pointer; color: var(--accent); font-size: 12px; }
+  .memory-facts a { color: var(--accent); }
+  #search-settings { margin: auto; width: min(680px, 94vw); max-height: 90vh; overflow: auto; padding: 0; border: 1px solid var(--border); border-radius: 12px; color: var(--ink); background: var(--panel); }
+  #search-settings::backdrop { background: rgba(28,28,26,.38); }
+  .settings-body { padding: 14px 18px 18px; }
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin: 12px 0; }
+  .settings-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+  .settings-grid input { width: 100%; font: 12px var(--mono); border: 1px solid var(--border); padding: 8px; border-radius: 6px; background: var(--bg); }
+  .settings-wide { grid-column: 1 / -1; }
+  #settings-categories { display: flex; gap: 8px 16px; flex-wrap: wrap; border: 1px solid var(--border); padding: 10px; font-size: 12px; }
+  #settings-categories legend { padding: 0 4px; }
+  .settings-warning { font-size: 12px; color: var(--warn); margin: 8px 0; }
+  #settings-message { min-height: 20px; font-size: 12px; margin: 8px 0; white-space: pre-wrap; }
+  @media (max-width: 1080px) { header { flex-wrap: wrap; gap: 8px; } header h1 span, #hostinfo { display: none; } }
+
+  /* ---------- 文件说明：独立于正文和权限 ---------- */
+  #file-guide-dialog { margin: auto; width: min(960px, 94vw); height: min(740px, 88vh); max-height: 88vh;
+    padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--ink); }
+  #file-guide-dialog[open] { display: flex; flex-direction: column; }
+  #file-guide-dialog::backdrop { background: rgba(28,28,26,.38); }
+  .guide-toolbar { display: flex; gap: 8px; align-items: center; padding: 10px 16px 0; }
+  #file-guide-search { flex: 1; min-width: 0; padding: 6px 8px; font: inherit; border: 1px solid var(--border); border-radius: 6px; }
+  #file-guide-notice, #file-guide-meta, #file-guide-status { margin: 6px 16px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  #file-guide-status:empty { display: none; }
+  .guide-panes { display: grid; grid-template-columns: 220px minmax(0, 1fr); flex: 1; min-height: 0; margin-top: 8px; border-top: 1px solid var(--border); }
+  #file-guide-list { overflow-y: auto; padding: 8px; border-right: 1px solid var(--border); }
+  .guide-type { display: block; width: 100%; border: 0; border-radius: 6px; background: transparent; text-align: left; padding: 7px 9px; color: var(--ink); font-size: 12px; overflow-wrap: anywhere; }
+  .guide-type:hover { background: var(--bg); }
+  .guide-type[aria-current="true"] { background: var(--accent); color: var(--accent-ink); }
+  .guide-type small { display: block; opacity: .8; }
+  #file-guide-detail { overflow-y: auto; padding: 14px 18px 24px; font-size: 12.5px; overflow-wrap: anywhere; }
+  #file-guide-detail h2 { font-size: 16px; }
+  #file-guide-detail h3 { margin: 16px 0 6px; font-size: 13px; }
+  #file-guide-detail p { white-space: pre-line; }
+  #file-guide-detail ul { padding-left: 20px; }
+  #file-guide-detail code { font: 11.5px var(--mono); white-space: pre-wrap; }
+  #file-guide-detail a { color: var(--accent); }
+  .pf-flow { display: flex; align-items: stretch; gap: 4px; flex-wrap: wrap; }
+  .pf-stage { flex: 1 1 150px; border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px;
+    font-size: 11px; color: var(--muted-foreground); }
+  .pf-stage small { font-size: 10px; }
+  .pf-stage.pf-active { border-color: var(--accent); color: var(--foreground); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .pf-arrow { align-self: center; color: var(--muted-foreground); font-size: 12px; }
+  #file-guide-detail .guide-io { font: 11px var(--mono); white-space: pre-wrap; overflow-wrap: anywhere;
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin: 4px 0;
+    max-height: 220px; overflow-y: auto; }
+  .guide-fields { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  .guide-fields th:first-child { width: 106px; }
+  .guide-fields:has(th:nth-child(3)) th:nth-child(2) { width: 164px; }
+  .guide-fields th, .guide-fields td { text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); padding: 6px; }
+  .guide-button { padding: 1px 6px; font-size: 11px; margin-left: 6px; white-space: nowrap; }
+  #v-file-guide { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+  #v-file-guide-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #v-file-guide-open { flex-shrink: 0; }
+  @media (max-width: 640px) { .guide-panes { grid-template-columns: 145px minmax(0, 1fr); } #file-guide-detail { padding: 10px; } }
+
+  /* ---------- 生效提示词浮层 ---------- */
+  #eff-modal { display: none; position: fixed; inset: 0; background: rgba(28,28,26,.38);
+               z-index: 50; align-items: center; justify-content: center; }
+  #eff-modal.open { display: flex; }
+  .eff-box { width: min(860px, 92vw); max-height: 86vh; background: var(--panel);
+             border-radius: 12px; display: flex; flex-direction: column;
+             box-shadow: 0 18px 50px rgba(0,0,0,.18); }
+  .eff-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+              border-bottom: 1px solid var(--border); }
+  .eff-head b { font-size: 14.5px; }
+  .eff-path { font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+              word-break: break-all; }
+  .eff-meta { padding: 8px 16px; font-size: 12.5px; color: var(--muted);
+              border-bottom: 1px dashed var(--border); }
+  .eff-body { overflow-y: auto; padding: 12px 16px 18px; }
+  .eff-lvl { margin-bottom: 14px; }
+  .eff-lvl > .lvl-h { display: flex; align-items: baseline; gap: 8px; padding: 6px 0;
+                      border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+  .eff-lvl > .lvl-h .lname { font-weight: 700; font-size: 13px; }
+  .eff-lvl > .lvl-h .lpath { font-family: var(--mono); font-size: 11px; color: var(--muted);
+                             word-break: break-all; }
+  .eff-lvl > .lvl-h .lnote { margin-left: auto; font-size: 11px; color: var(--muted); }
+  .eff-file { margin: 6px 0 12px 14px; }
+  .eff-file .f-h { display: flex; align-items: baseline; gap: 8px; cursor: pointer;
+                   padding: 3px 0; }
+  .eff-file .f-h:hover .fname { color: var(--accent); }
+  .eff-file .fname { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+  .eff-file .fmeta { font-size: 11px; color: var(--muted); }
+  .eff-file pre { display: none; margin: 6px 0 0; padding: 10px 12px; background: #f9f9f6;
+                  border: 1px solid var(--border); border-radius: 8px;
+                  font: 11.5px/1.55 var(--mono); white-space: pre-wrap; word-break: break-word;
+                  max-height: 340px; overflow-y: auto; }
+  .eff-file.open pre { display: block; }
+  .eff-empty { padding: 30px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <button class="btn icon-btn" id="btn-sb" title="收起/展开侧边栏 (⌘B)">☰</button>
+  <h1>AgentAtlas<span>智能体文件库 · v2</span></h1>
+  <span id="hostinfo"></span>
+  <div class="spacer"></div>
+  <form id="search-form" role="search">
+    <input id="search" type="search" aria-label="搜索全部文件内容和路径" placeholder="搜索全部文件内容 / 路径…（/）">
+    <select id="search-mode" aria-label="检索方式"><option value="keyword">关键词 · 本地</option><option value="vector">向量 · 云端查询</option><option value="hybrid">混合 · 云端查询</option></select>
+    <button class="btn" id="btn-search" type="submit">搜索</button>
+  </form>
+  <button class="btn" id="btn-file-guide" type="button">文件说明</button>
+  <button class="btn" id="btn-settings" type="button">检索设置</button>
+  <button class="btn" id="btn-rescan">重新扫描</button>
+</header>
+
+<main>
+  <nav id="sidebar"></nav>
+  <div class="sb-rail" id="sb-rail" title="展开侧边栏">▶</div>
+  <div id="content-wrap">
+    <div id="crumb"><button class="btn back-btn" id="btn-back" title="返回上一视图">←</button><div class="cb-inner" id="crumb-inner"></div></div>
+    <div id="snapshot-status" class="asset-hint" role="status" aria-live="polite"></div>
+    <div id="stats"></div>
+    <div id="notice"></div>
+    <section id="asset-tools" aria-label="文件库筛选" hidden>
+      <div class="asset-toolbar">
+        <label>平台 <select id="asset-platform"><option value="">全部平台</option></select></label>
+        <label>类别 <select id="asset-category"><option value="">全部类别</option></select></label>
+        <label>项目 <select id="asset-project"><option value="">全部项目</option></select></label>
+        <button class="btn" id="asset-reset" type="button">清除筛选</button>
+        <button class="btn" id="asset-rescan" type="button" title="更新指令地图和文件库；不生成云向量">更新全部清单</button>
+      </div>
+      <div class="asset-hint">筛选条件取交集。全局位置仅表示存放位置，不代表自动注入。配置 / 脚本 / 会话 / 日志只读；其他文件以安全策略为准。</div>
+      <div id="index-status" role="status" aria-live="polite"></div>
+    </section>
+    <section id="memory-tools" aria-label="记忆作用域筛选" hidden>
+      <div class="memory-viewbar" role="group" aria-label="记忆浏览方式">
+        <button class="btn" id="memory-by-directory" type="button">按存放目录</button>
+        <button class="btn" id="memory-by-scope" type="button">按作用范围</button>
+        <label id="memory-directory-controls" hidden><input id="memory-recursive" type="checkbox"> 包含子目录文件</label>
+      </div>
+      <div class="asset-toolbar">
+        <label>适用项目 <select id="memory-project"><option value="">全部适用项目</option></select></label>
+        <label>平台 <select id="memory-platform"><option value="">全部平台</option></select></label>
+        <label>Profile <select id="memory-profile"><option value="">全部 Profile</option></select></label>
+        <label>阶段 <select id="memory-stage"><option value="">全部阶段</option><option value="foreground">前台</option><option value="background">后台</option><option value="unknown">未知</option></select></label>
+        <label>作用层级 <select id="memory-level"><option value="">全部层级</option></select></label>
+        <label>本地搜索 <input id="memory-search" type="search" placeholder="名称 / 路径 / 关联项目…" aria-label="搜索已加载的记忆元数据，不检索正文"></label>
+        <button class="btn" id="memory-reset" type="button">清除筛选</button>
+        <button class="btn" id="memory-refresh" type="button">刷新作用域</button>
+      </div>
+      <p class="asset-hint" id="memory-hint">项目按读取规则筛选；层级不代表继承或优先级。本地搜索只查标题、路径和关联项目，不检索全文、不发送云端查询。</p>
+      <div id="memory-status" class="asset-hint" role="status" aria-live="polite"></div>
+      <div class="asset-pagination" aria-label="记忆分页">
+        <button class="btn" id="memory-prev" type="button" disabled>上一页</button>
+        <span id="memory-page-status" role="status" aria-live="polite"></span>
+        <button class="btn" id="memory-next" type="button" disabled>下一页</button>
+      </div>
+    </section>
+    <div id="content"></div>
+  </div>
+  <aside id="viewer">
+    <div class="v-resize" id="v-resize" title="拖动调整宽度"></div>
+    <div class="vhead">
+      <div class="vtitle"><span id="v-name"></span><span id="v-tags"></span></div>
+      <div class="vpath" id="v-path"></div>
+      <button class="btn" id="v-directory" type="button" title="查看同目录与子目录中的记忆；清除作用域筛选并保留草稿" hidden>所在目录 ↗</button>
+      <div class="asset-hint" id="v-policy" role="status"></div>
+      <div id="v-file-guide" hidden><span id="v-file-guide-summary"></span><button class="btn guide-button" id="v-file-guide-open" type="button" disabled>用途/命名 ↗</button></div>
+      <details id="v-memory" hidden>
+        <summary>记忆作用域 / 读取依据 · 未验证实际读取</summary>
+        <div id="v-memory-body"></div>
+      </details>
+    </div>
+    <textarea id="v-text" spellcheck="false"></textarea>
+    <div id="v-tr" class="tr-view" style="display:none"></div>
+    <div id="v-sec" class="sec-list" style="display:none"></div>
+    <div class="vfoot">
+      <span class="vmsg" id="v-msg"></span>
+      <select id="v-tr-lang" class="tr-lang" title="翻译目标语言">
+        <option>中文</option><option>English</option><option>日本語</option>
+      </select>
+      <button class="btn" id="v-translate" title="翻译文件内容（按磁盘已保存版本）">翻译</button>
+      <button class="btn" id="v-sections" title="按标题拆解为 section 组件，可单独编辑">组件</button>
+      <button class="btn" id="v-effective" title="按默认配置和当前目录布局推算，不代表历史注入">Codex 生效栈</button>
+      <button class="btn" id="v-open" disabled>系统编辑器</button>
+      <button class="btn" id="v-reload" type="button">重新读取</button>
+      <button class="btn primary" id="v-save" disabled>保存 (⌘S)</button>
+      <button class="btn" id="v-close">关闭</button>
+    </div>
+  </aside>
+</main>
+
+<dialog id="file-guide-dialog" aria-labelledby="file-guide-title" aria-describedby="file-guide-notice">
+  <div class="eff-head"><b id="file-guide-title">文件说明</b><span style="flex:1"></span><button class="btn" id="file-guide-close" type="button">关闭</button></div>
+  <div class="guide-toolbar"><input id="file-guide-search" type="search" placeholder="本地搜索类型 / 用途 / 命名字段…" aria-label="本地搜索文件类型说明"><button class="btn" id="file-guide-refresh" type="button">刷新说明 / 重试</button></div>
+  <p id="file-guide-notice">设计说明≠本次实际读取；只解释清单路径，不核验源文件是否存在、不读取正文、不上传或修改文件。</p>
+  <div id="file-guide-meta"></div>
+  <div id="file-guide-status" role="status" aria-live="polite"></div>
+  <div class="guide-panes"><nav id="file-guide-list" aria-label="文件说明类型"></nav><article id="file-guide-detail" aria-label="当前类型说明"></article></div>
+</dialog>
+
+<dialog id="search-settings" aria-labelledby="settings-title">
+  <div class="eff-head"><b id="settings-title">检索设置</b><span style="flex:1"></span><button class="btn" id="settings-close" type="button">关闭</button></div>
+  <div class="settings-body">
+    <p class="asset-hint">关键词、原文切块和向量数据保存在本机 SQLite。云端仅用于生成 embedding；保存配置、扫描和更新本地索引不会上传内容。</p>
+    <form id="settings-form" autocomplete="off">
+      <div class="settings-grid">
+        <label class="settings-wide">兼容服务 Base URL（不含 /embeddings）<input id="settings-base" type="url" placeholder="https://provider.example/v1" autocomplete="off"></label>
+        <label class="settings-wide">Embedding 模型名（由服务商提供）<input id="settings-model" type="text" placeholder="填写实际可用的 embedding 模型" autocomplete="off"></label>
+        <label class="settings-wide">API Key（留空保留现有密钥）<input id="settings-key" type="password" autocomplete="new-password" placeholder="仅在需要新增或替换时输入"></label>
+        <label>向量维度（可选）<input id="settings-dimensions" type="number" min="1" step="1" placeholder="服务商默认维度"></label>
+        <label>请求批大小<input id="settings-batch" type="number" min="1" max="128" step="1" value="16" required></label>
+      </div>
+      <div class="asset-hint"><span id="settings-key-state">密钥状态未读取</span> · <label><input id="settings-clear-key" type="checkbox"> 清除已保存密钥</label></div>
+      <fieldset id="settings-categories"><legend>允许发送到 embedding 服务的文件类别</legend></fieldset>
+      <p class="settings-warning">隐私提示：会话、日志、配置可能包含对话、密钥和个人信息，默认不上传；只有主动勾选、保存并确认生成向量后才发送。保存或清除设置会停止后续上传批次，已发出的请求无法撤回。向量 / 混合搜索也会发送查询文本。内容不会作为脚本执行。</p>
+      <div id="settings-message" role="status" aria-live="polite"></div>
+      <button class="btn primary" id="settings-save" type="submit" disabled>保存配置（不上传）</button>
+    </form>
+    <div class="asset-pagination" style="margin-top:12px;border-top:1px solid var(--border)">
+      <button class="btn" id="settings-local" type="button">更新本地索引</button>
+      <button class="btn" id="settings-vectors" type="button">生成 / 补齐向量（最多256段）</button>
+    </div>
+    <div class="asset-hint" id="settings-index-status" role="status" aria-live="polite"></div>
+  </div>
+</dialog>
+
+<div id="eff-modal">
+  <div class="eff-box">
+    <div class="eff-head">
+      <b>生效提示词栈</b>
+      <span class="eff-path" id="eff-path"></span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn" id="eff-copy">复制路径清单</button>
+      <button class="btn" id="eff-close">关闭</button>
+    </div>
+    <div class="eff-meta" id="eff-meta"></div>
+    <div class="eff-body" id="eff-body"></div>
+  </div>
+</div>
+
+<script src="/lifecycle.js"></script>
+<script>
+"use strict";
+let DATA = null;
+let view = { type: "assets" }; // assets 独立文件库；all 保留原指令地图
+let ASSETS = null, assetsError = "", assetPage = 0;
+let MEMORIES = null, memoryError = "", memoryLoading = false, memoryVersion = 0;
+let memoryPage = 0;
+let memoryRecursive = false;
+const memoryExpanded = new Set();
+const MEMORY_PAGE_SIZE = 50;
+const memoryLocal = { query: "", stage: "", level: "" };
+const MEMORY_STAGES = { foreground: "前台", background: "后台", unknown: "阶段未知" };
+const memoryFilters = { project: "", platform: "", profile: "" };
+const MEMORY_LEVELS = { user: "用户级", profile: "Profile 级", workspace: "工作区级", project: "项目级", directory: "目录级", session: "会话级", unknown: "未知" };
+const ASSET_PAGE_SIZE = 100;
+const assetFilters = { platform: "", category: "", project: "" };
+const CATEGORY_LABELS = { instruction: "指令", memory: "记忆", skill: "技能", reference: "技能附件 / 参考", command: "命令", hook: "钩子", config: "配置", session: "会话", log: "日志", other: "其他" };
+const searchState = { q: "", mode: "keyword", results: null, total: null, loading: false, warning: "", error: "" };
+let openRoots = new Set();    // 侧边栏展开的根目录
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const fmtB = (n) => n >= 1048576 ? (n/1048576).toFixed(1)+" MB" : n >= 1024 ? (n/1024).toFixed(1)+" KB" : n+" B";
+const fmtT = (ts) => { const d = new Date(ts*1000), p = (x)=>String(x).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+
+/* ---------- Arco 风格下拉菜单：统一增强页面内全部 select ---------- */
+function closeAtlasSelect(select, restoreFocus = false) {
+  const ui = select?._atlasSelect;
+  if (!ui) return;
+  ui.menu.hidden = true;
+  ui.menu.classList.remove("open-up");
+  ui.trigger.setAttribute("aria-expanded", "false");
+  if (restoreFocus) ui.trigger.focus();
+}
+function openAtlasSelect(select, focusSelected = false) {
+  const ui = select?._atlasSelect;
+  if (!ui) return;
+  document.querySelectorAll("select").forEach(other => { if (other !== select) closeAtlasSelect(other); });
+  ui.menu.hidden = false;
+  ui.trigger.setAttribute("aria-expanded", "true");
+  if (!ui.menu.dataset.resizeReady) {
+    const initial = ui.menu.getBoundingClientRect();
+    ui.menu.style.width = Math.ceil(initial.width) + "px";
+    ui.menu.style.height = Math.ceil(initial.height) + "px";
+    ui.menu.dataset.resizeReady = "true";
+    ui.menu.classList.add("resizable");
+  }
+  const rect = ui.trigger.getBoundingClientRect();
+  const menuHeight = ui.menu.getBoundingClientRect().height;
+  const below = window.innerHeight - rect.bottom - 10, above = rect.top - 10;
+  ui.menu.classList.toggle("open-up", below < menuHeight && above > below);
+  if (focusSelected) {
+    const selected = ui.menu.querySelector('[aria-selected="true"]:not(:disabled)') || ui.menu.querySelector(".atlas-select-option:not(:disabled)");
+    if (selected) selected.focus();
+  }
+}
+function syncAtlasSelect(select) {
+  const ui = select?._atlasSelect;
+  if (!ui) return;
+  const options = [...select.options];
+  const selected = options.find(option => option.value === select.value) || options[0];
+  ui.label.textContent = selected?.textContent || "";
+  ui.trigger.title = select.title || selected?.textContent || "";
+  ui.menu.innerHTML = "";
+  for (const option of options) {
+    const button = document.createElement("button");
+    button.className = "atlas-select-option";
+    button.type = "button";
+    button.dataset.value = option.value;
+    button.disabled = option.disabled;
+    button.setAttribute("role", "option");
+    button.setAttribute("aria-selected", String(option.value === select.value));
+    const check = document.createElement("span"), text = document.createElement("span");
+    check.className = "atlas-select-check"; check.textContent = "✓"; check.setAttribute("aria-hidden", "true");
+    text.textContent = option.textContent;
+    button.append(check, text);
+    button.addEventListener("click", () => {
+      if (button.disabled) return;
+      const changed = select.value !== option.value;
+      select.value = option.value;
+      syncAtlasSelect(select);
+      closeAtlasSelect(select, true);
+      if (changed) select.dispatchEvent(new Event("change", {bubbles:true}));
+    });
+    ui.menu.appendChild(button);
+  }
+}
+function enhanceAtlasSelect(select) {
+  if (select._atlasSelect || !select.parentNode) return;
+  const wrapper = document.createElement("span");
+  wrapper.className = "atlas-select" + (select.id === "search-mode" ? " wide" : select.id === "v-tr-lang" ? " compact" : "");
+  const trigger = document.createElement("button"), label = document.createElement("span"), caret = document.createElement("span"), menu = document.createElement("div");
+  trigger.className = "atlas-select-trigger"; trigger.type = "button"; trigger.id = select.id + "-trigger";
+  trigger.setAttribute("aria-haspopup", "listbox"); trigger.setAttribute("aria-expanded", "false");
+  label.className = "atlas-select-label";
+  caret.className = "atlas-select-caret"; caret.setAttribute("aria-hidden", "true");
+  trigger.append(label, caret);
+  menu.className = "atlas-select-menu"; menu.id = select.id + "-menu"; menu.hidden = true;
+  menu.setAttribute("role", "listbox"); menu.setAttribute("aria-labelledby", trigger.id);
+  trigger.setAttribute("aria-controls", menu.id);
+  select.parentNode.insertBefore(wrapper, select);
+  wrapper.append(select, trigger, menu);
+  select.classList.add("visually-hidden"); select.tabIndex = -1;
+  select._atlasSelect = {wrapper, trigger, label, menu};
+  trigger.addEventListener("click", () => uiToggle());
+  function uiToggle() { menu.hidden ? openAtlasSelect(select, true) : closeAtlasSelect(select); }
+  trigger.addEventListener("keydown", e => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+    e.preventDefault(); openAtlasSelect(select, true);
+  });
+  menu.addEventListener("keydown", e => {
+    const options = [...menu.querySelectorAll(".atlas-select-option:not(:disabled)")];
+    const current = options.indexOf(document.activeElement);
+    if (e.key === "Escape") { e.preventDefault(); closeAtlasSelect(select, true); return; }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key) || !options.length) return;
+    e.preventDefault();
+    const next = e.key === "Home" ? 0 : e.key === "End" ? options.length - 1 :
+      (current + (e.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+    options[next].focus();
+  });
+  select.addEventListener("change", () => syncAtlasSelect(select));
+  syncAtlasSelect(select);
+}
+document.querySelectorAll("select").forEach(enhanceAtlasSelect);
+document.addEventListener("click", e => {
+  document.querySelectorAll("select").forEach(select => {
+    const ui = select._atlasSelect;
+    if (ui && !ui.wrapper.contains(e.target)) closeAtlasSelect(select);
+  });
+});
+const KIND_LABEL = { agents:"AGENTS", claude:"CLAUDE", gemini:"GEMINI", qwen:"QWEN",
+  "cursor-rule":"CURSOR", "cursor-legacy":"CURSOR旧", windsurf:"WINDSURF",
+  cline:"CLINE", copilot:"COPILOT", other:"MD" };
+const kindTag = (k) => `<span class="tag t-${esc(k)}">${KIND_LABEL[k]||"MD"}</span>`;
+
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  const j = await r.json().catch(() => ({ok:false, error:"响应解析失败"}));
+  if (!r.ok || j.ok === false) {
+    const error = new Error(j.error || ("HTTP "+r.status));
+    error.status = r.status;
+    throw error;
+  }
+  return j.data !== undefined ? j.data : j;
+}
+
+/* ---------- 文件类型说明：只读取本地说明接口 ---------- */
+const fileGuideState = { library: null, detail: null, selectedId: "", path: "" };
+let fileGuideVersion = 0, fileGuideController = null;
+function invalidateFileGuide() {
+  fileGuideVersion++;
+  if (fileGuideController) fileGuideController.abort();
+  fileGuideController = null;
+}
+function closeFileGuide() {
+  invalidateFileGuide(); $("#file-guide-dialog").close();
+}
+function fileGuideButton(path) {
+  return `<button class="btn guide-button" type="button" data-guide-path="${esc(path)}" title="只查看类型用途与命名，不读取正文">用途/命名</button>`;
+}
+function fileGuideStrings(values) { return Array.isArray(values) ? values.filter(value => typeof value === "string") : []; }
+/* Codex 记忆流水线:类型 → 工位高亮。kind: raw=原料/半成品 rule=规则 done=成品 */
+const MEMORY_PIPELINE = {
+  stages: [
+    { id: "source", label: "原料", entries: ["聊天会话日志(rollout)", "Skysight / Chronicle 活动摘要", "你的补充笔记(ad-hoc)"] },
+    { id: "stage1", label: "第一道工序 stage1", entries: ["会话/任务回顾(rollout_summaries)", "初步提取汇总(raw)"] },
+    { id: "stage2", label: "第二道工序 consolidate", entries: ["整理规则(instructions.md)"] },
+    { id: "done", label: "成品(自动注入/按需查)", entries: ["记忆总览(memory_summary)", "记忆索引(MEMORY.md)", "记忆技能包(skills/)"] }
+  ],
+  // 类型 id → [工位下标, 条目关键词]
+  where: {
+    "codex.rollout.summary": [1, "会话/任务回顾"],
+    "codex.memory.raw": [1, "初步提取汇总"],
+    "codex.skysight.resource": [0, "Skysight"],
+    "codex.chronicle.resource": [0, "Chronicle"],
+    "codex.ad-hoc.note": [0, "补充笔记"],
+    "codex.memory.index": [3, "记忆索引"],
+    "codex.memory.summary": [3, "记忆总览"],
+    "codex.memory.skill": [3, "记忆技能包"],
+    "codex.extension.instructions": [2, "整理规则"]
+  }
+};
+function fileGuideFlowHtml(d) {
+  const pos = MEMORY_PIPELINE.where[d.id];
+  if (!pos) return "";
+  const [stage, keyword] = pos;
+  const box = (text, active) => `<div class="pf-stage${active ? " pf-active" : ""}">${text}</div>`;
+  let html = `<h3>在记忆流水线中的位置</h3><div class="pf-flow">`;
+  html += box("① 原料<br><small>会话日志 · 活动摘要 · 补充笔记</small>", stage === 0);
+  html += `<span class="pf-arrow">→</span>`;
+  html += box("② 第一道工序 stage1<br><small>逐会话提取:回顾 + 毛料</small>", stage === 1);
+  html += `<span class="pf-arrow">→</span>`;
+  html += box("③ 第二道工序 consolidate<br><small>全局整理(规则说明书)</small>", stage === 2);
+  html += `<span class="pf-arrow">→</span>`;
+  html += box("④ 成品<br><small>总览(自动注入) · 索引(按需搜) · 技能包(按需读)</small>", stage === 3);
+  html += `</div>`;
+  if (d.loadingMechanism) html += `<p class="asset-hint">加载方式:${esc(d.loadingMechanism)}</p>`;
+  return html;
+}
+function fileGuideDetailHtml(d) {
+  const filename = d.filename || {};
+  const field = (label, value) => `<dt>${label}</dt><dd>${esc(value || "未记录")}</dd>`;
+  const list = values => `<ul>${fileGuideStrings(values).map(value => `<li>${esc(value)}</li>`).join("")}</ul>`;
+  const sources = (Array.isArray(d.sources) ? d.sources : []).filter(Boolean).map(source => {
+    let url;
+    try { url = new URL(source.url); } catch (_) { /* Keep local sources as plain text. */ }
+    const safe = url && ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
+    const label = esc(source.label || "来源");
+    return `<li>${esc(source.kind || "来源")} · ${safe ? `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${label}</a>` : label}
+      ${source.path ? `<code>${esc(source.path)}</code>` : source.url && !safe ? "（链接不可用）" : ""}
+      ${Number.isInteger(source.line) && source.line > 0 ? ` L${source.line}` : ""}${source.checkedAt ? ` · 复核 ${esc(source.checkedAt)}` : ""}</li>`;
+  }).join("");
+  const fields = (Array.isArray(filename.fields) ? filename.fields : []).filter(Boolean);
+  const docs = fileGuideStrings(d.docs).length ? fileGuideStrings(d.docs) : [];
+  const docLinks = docs.length ? `<ul>${docs.map(doc => {
+    let url; try { url = new URL(doc); } catch (_) { /* plain text doc entry */ }
+    const safe = url && ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
+    return `<li>${safe ? `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">官方文档：${esc(doc)}</a>` : esc(doc)}</li>`;
+  }).join("")}</ul>` : "";
+  const flow = fileGuideFlowHtml(d);
+  return `<h2>${esc(d.label || "尚未收录的文件类型")}</h2>
+    ${d.path ? `<h3>当前文件 · 清单路径</h3><p><code>${esc(d.path)}</code></p>` : ""}
+    ${d.generationMechanism ? `<h3>生成机制</h3><p>${esc(d.generationMechanism)}${d.path ? ` <button class="btn guide-button" type="button" data-guide-provenance="${esc(d.path)}">查看生成证据</button>` : ""}</p>` : ""}
+    ${flow}
+    ${docLinks ? `<h3>官方文档</h3>${docLinks}` : ""}
+    <dl class="memory-facts">${field("角色", d.role)}${field("用途", d.purpose)}${field("生成 / 写入方", d.producer)}${field("读取 / 消费方", d.consumer)}${field("加载方式", d.loadingMechanism)}${field("判断依据", d.evidence)}</dl>
+    <h3>路径约定</h3>${fileGuideStrings(d.matchPatterns).length ? list(d.matchPatterns) : "<p>未记录专门路径约定。</p>"}
+    <h3>命名字段</h3><p><code>${esc(filename.pattern || "未记录统一命名约定")}</code></p>
+    <p class="asset-hint">${filename.status === "matched" ? "已匹配命名约定 · 逐段拆解（不改变原文件名）" : filename.status === "template" ? "类型模板 · 不是某个文件的解析结果" : "未匹配已核实的命名约定；不猜测各段含义。"}</p>
+    ${filename.original != null ? `<p><code>${esc(filename.original)}</code></p>` : ""}
+    ${fields.length ? `<table class="guide-fields"><thead><tr><th>字段</th>${filename.status === "matched" ? "<th>原始片段</th>" : ""}<th>含义</th></tr></thead><tbody>${fields.map(f => `<tr><td>${esc(f.label || f.key || "字段")}<br><code>${esc(f.key || "")}</code></td>${filename.status === "matched" ? `<td><code>${esc(f.value ?? "未记录")}</code></td>` : ""}<td>${esc(f.meaning || "未核实")}</td></tr>`).join("")}</tbody></table>` : "<p>没有可确认的命名字段，不从文件名猜测。</p>"}
+    ${fileGuideStrings(filename.examples).length ? `<h3>命名示例</h3>${list(filename.examples)}` : ""}
+    <h3>注意事项</h3>${list([ ...fileGuideStrings(d.cautions), ...fileGuideStrings(filename.cautions) ])}
+    <h3>来源与复核</h3><ul>${sources || "<li>未提供可核对来源</li>"}</ul><p class="asset-hint">类型复核：${esc(d.reviewedAt || "未记录")}</p>`;
+}
+function renderFileGuideList() {
+  const terms = $("#file-guide-search").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const types = (fileGuideState.library?.types || []).filter(d => terms.every(term => JSON.stringify(d).toLowerCase().includes(term)));
+  $("#file-guide-list").innerHTML = types.map(d => `<button class="guide-type" type="button" data-guide-type="${esc(d.id)}" aria-current="${d.id === fileGuideState.selectedId}">${esc(d.label)}<small>${esc(d.role || "")}</small></button>`).join("") || '<p class="asset-hint">没有匹配的类型。</p>';
+}
+function selectFileGuideType(id) {
+  const d = fileGuideState.library?.types.find(type => type.id === id);
+  if (!d) return;
+  invalidateFileGuide(); $("#file-guide-status").textContent = "";
+  fileGuideState.selectedId = id; fileGuideState.path = ""; fileGuideState.detail = d;
+  renderFileGuideList(); $("#file-guide-detail").innerHTML = fileGuideDetailHtml(d);
+  $("#file-guide-detail").scrollTop = 0;
+}
+async function openFileGuide(path = "") {
+  if (!$("#file-guide-dialog").open) $("#file-guide-dialog").showModal();
+  fileGuideState.path = path;
+  if (path) fileGuideState.selectedId = "";
+  fileGuideState.detail = null;
+  $("#file-guide-detail").innerHTML = `<p>正在读取说明…${path ? `<br><code>${esc(path)}</code>` : ""}</p>`;
+  $("#file-guide-detail").scrollTop = 0;
+  bindRows();
+  return loadFileGuide();
+}
+async function loadFileGuide(refresh = false) {
+  if (!$("#file-guide-dialog").open) return;
+  invalidateFileGuide();
+  const version = fileGuideVersion;
+  fileGuideController = new AbortController();
+  const opts = { signal: fileGuideController.signal };
+  const path = fileGuideState.path, selectedId = fileGuideState.selectedId;
+  $("#file-guide-status").textContent = "正在读取说明…" + (fileGuideState.detail ? "（暂保留上次说明）" : "");
+  try {
+    const d = !refresh && fileGuideState.library || await api("/api/file-guide", opts);
+    if (version !== fileGuideVersion || !$("#file-guide-dialog").open) return;
+    if (d?.schemaVersion !== 1 || !Array.isArray(d.types)) throw new Error("说明库响应格式未知");
+    fileGuideState.library = d;
+    $("#file-guide-meta").textContent = `说明库复核：${d.reviewedAt || "未记录"} · 维护文件：${d.maintenancePath || "未记录"}`;
+    $("#file-guide-notice").textContent = "设计说明≠本次实际读取；只解释清单路径，不核验源文件是否存在、不读取正文、不上传或修改文件。 " + (d.notice || "");
+    renderFileGuideList();
+    let detail;
+    if (path) {
+      detail = await api("/api/file-guide?path=" + encodeURIComponent(path), opts);
+      if (version !== fileGuideVersion || !$("#file-guide-dialog").open) return;
+      if (!detail || typeof detail.id !== "string" || detail.path !== path) throw new Error("说明响应与所选清单路径不一致");
+    } else detail = selectedId ? d.types.find(type => type.id === selectedId) : d.types[0];
+    const scroll = $("#file-guide-detail").scrollTop;
+    fileGuideState.detail = detail || null;
+    if (detail) fileGuideState.selectedId = detail.id;
+    $("#file-guide-detail").innerHTML = detail ? fileGuideDetailHtml(detail) : selectedId
+      ? `<p>类型 ${esc(selectedId)} 不在当前说明库中。请选择其他类型或刷新重试。</p>` : "<p>说明库暂无类型。</p>";
+    $("#file-guide-detail").scrollTop = scroll;
+    $("#file-guide-status").textContent = "";
+    renderFileGuideList();
+  } catch (e) {
+    if (version === fileGuideVersion && $("#file-guide-dialog").open) {
+      const unsupported = e.status === 404 && e.message === "unknown endpoint";
+      $("#file-guide-status").textContent = (unsupported
+        ? `当前后端未提供文件说明接口（${window.location?.origin || "当前地址"}），可能是前后端版本不一致。请重启该地址的 AgentAtlas 后端，再点「刷新说明 / 重试」；仅刷新页面不会加载新后端。`
+        : "说明暂不可用：" + e.message + "。可点击「刷新说明 / 重试」。")
+        + (fileGuideState.detail ? "当前保留上次说明，尚未刷新。" : "");
+      if (!fileGuideState.detail) $("#file-guide-detail").innerHTML = `<p>未取得说明${path ? `：<code>${esc(path)}</code>` : ""}。不会尝试读取源文件正文。</p>`;
+    }
+  } finally {
+    if (version === fileGuideVersion) fileGuideController = null;
+  }
+}
+$("#btn-file-guide").addEventListener("click", () => openFileGuide());
+$("#file-guide-search").addEventListener("input", renderFileGuideList);
+$("#file-guide-refresh").addEventListener("click", () => loadFileGuide(true));
+$("#file-guide-close").addEventListener("click", closeFileGuide);
+$("#file-guide-dialog").addEventListener("cancel", e => { e.preventDefault(); closeFileGuide(); });
+$("#file-guide-dialog").addEventListener("close", () => { if (!$("#file-guide-dialog").open) invalidateFileGuide(); });
+
+/* ---------- 生成机制证据：按需查询，不预扫 ---------- */
+async function showProvenance(path) {
+  const detail = $("#file-guide-detail");
+  detail.innerHTML = `<p>正在读取生成机制证据…<br><code>${esc(path)}</code></p>`;
+  detail.scrollTop = 0;
+  $("#file-guide-status").textContent = "";
+  try {
+    const d = await api("/api/provenance?path=" + encodeURIComponent(path));
+    const ev = (Array.isArray(d.evidence) ? d.evidence : []).filter(Boolean);
+    const block = item => {
+      const records = Array.isArray(item.records) && item.records.length
+        ? `<table class="guide-fields"><tbody>${item.records.map(r => `<tr><td>${esc(JSON.stringify(r)).slice(0, 600)}</td></tr>`).join("")}</tbody></table>` : "";
+      const body = [item.detail ? `<p>${esc(item.detail)}</p>` : "",
+        item.path ? `<p><code>${esc(item.path)}</code></p>` : "",
+        item.input ? `<p>工具入参：</p><pre class="guide-io">${esc(item.input)}</pre>` : "",
+        item.output ? `<p>工具出参：</p><pre class="guide-io">${esc(item.output)}</pre>` : "",
+        item.timestamp ? `<p>调用时间：${esc(item.timestamp)}</p>` : "", records].join("");
+      return `<li><b>${esc(item.kind || "证据")}</b> · ${esc(item.label || "")}${body}</li>`;
+    };
+    detail.innerHTML = `<h2>生成机制 · ${esc(d.label || "")}</h2>
+      <p><code>${esc(d.path || path)}</code></p>
+      ${d.mechanism ? `<p><b>机制：</b>${esc(d.mechanism)}</p>` : `<p>该类型暂无已核实的生成机制说明。</p>`}
+      ${(d.docs || []).length ? `<ul>${d.docs.map(doc => { let u; try { u = new URL(doc); } catch (_) {} const safe = u && ["http:", "https:"].includes(u.protocol) && !u.username && !u.password; return `<li>${safe ? `<a href="${esc(u.href)}" target="_blank" rel="noopener noreferrer">官方文档：${esc(doc)}</a>` : esc(doc)}</li>`; }).join("")}</ul>` : ""}
+      ${ev.length ? `<h3>证据</h3><ul>${ev.map(block).join("")}</ul>` : ""}
+      ${d.note ? `<p class="asset-hint">${esc(d.note)}</p>` : ""}
+      ${d.error ? `<p class="asset-hint">${esc(d.error)}</p>` : ""}
+      <p class="asset-hint">证据在点击时从本机只读取证（SQLite 只读 / 会话记录限窗扫描），不修改任何源文件；后台任务的确切模型提示词不落盘，无法展示。</p>`;
+    detail.scrollTop = 0;
+  } catch (e) {
+    detail.innerHTML = `<p>生成机制证据暂不可用：${esc(e.message)}。</p>`;
+  }
+}
+
+/* ---------- 数据访问 ---------- */
+function rootByName(name) { return DATA.roots.find(r => r.name === name); }
+function projOf(r, name) { return r ? r.projects.find(p => p.name === name) : null; }
+function fileProjectKey(f) { return f.proj || "(根目录)"; }
+function mapFiles(rootName, projName) {
+  return DATA.files.filter(f => (!rootName || f.root === rootName) &&
+    (!projName || fileProjectKey(f) === projName));
+}
+function filesOf(rootName, projName) { return mapFiles(rootName, projName).filter(wtVisible); }
+function mapSummary(files) {
+  const shown = files.filter(wtVisible), bytes = rows => rows.reduce((n,f) => n + (f.bytes || 0), 0);
+  const hidden = files.length - shown.length;
+  return {shown, hidden, total: files.length, bytes: bytes(shown), totalBytes: bytes(files),
+    mtime: shown.reduce((n,f) => Math.max(n, f.mtime || 0), 0),
+    count: hidden ? `${shown.length} / ${files.length}` : String(shown.length),
+    countLabel: hidden ? `显示 ${shown.length} / 总计 ${files.length} 文件` : `${shown.length} 文件`,
+    bytesLabel: hidden ? `显示 ${fmtB(bytes(shown))} / 总计 ${fmtB(bytes(files))}` : fmtB(bytes(shown))};
+}
+function mapStatsHtml(summary) {
+  return `<div class="stat"><b>${summary.shown.length}</b>${summary.hidden ? `当前显示文件 / 总计 ${summary.total}` : '文件'}</div>
+    <div class="stat"><b>${fmtB(summary.bytes)}</b>${summary.hidden ? `显示字节 / 总计 ${fmtB(summary.totalBytes)}` : '字节'}</div>`;
+}
+function wtCount(files = DATA.files) { return files.filter(f => f.worktree).length; }
+function wtBarHtml(files = DATA.files) {
+  const n = wtCount(files);
+  if (!n) return "";
+  return `<div class="viewbar"><span class="vb-label">其中 ${n} 份是 git worktree / 任务隔离副本</span>
+    <button class="vbtn ${hideWt ? "on" : ""}" id="btn-wt">${hideWt ? "已隐藏，点击显示" : "显示中，点击隐藏"}</button></div>`;
+}
+function toggleWt() { hideWt = !hideWt;
+  localStorage.setItem("aa-hide-wt", hideWt ? "1" : "0");
+  renderContent(); renderSidebar(); }
+function fileRow(f, mode) {
+  const disp = mode === "rel" ? (f.sub ? f.sub + "/" : "") + f.name : f.path;
+  const wt = (f.worktree && !hideWt) ? ' <span class="wt-badge">worktree</span>' : "";
+  const dupBadge = f.dup
+    ? ` <span class="dup dup-link" data-dup-src="${esc(f.path)}"
+        title="点击查看与哪些文件重复">重复</span>` : "";
+  const trB = ` <span class="tr-badge" data-tr-path="${esc(f.path)}"
+    style="display:none" title="点击查看译文">已翻译</span>`;
+  const use = USAGE && USAGE.files[f.path];
+  const useB = !use ? "" : use.estimatedSessions > 0
+    ? ` <span class="use-badge" title="已保留 Codex 日志与当前规则推算，不是历史注入证明">推算 ${use.estimatedSessions}</span>`
+    : use.mentions > 0 ? ` <span class="use-badge" title="日志中出现路径，不能确认读取">提及 ${use.mentions}</span>`
+    : ` <span class="use-badge cold" title="不代表未使用，也不评价规则质量">${use.sourceStatus === "available" && use.estimatedSessions === 0 ? "无观测信号" : "未知"}</span>`;
+  return `<tr class="file-row" data-path="${esc(f.path)}">
+    <td class="path">${kindTag(f.kind)}${esc(disp)}${wt}${dupBadge}${trB}${useB}${f.empty?' <span class="empty-flag">空</span>':''}${fileGuideButton(f.path)}</td>
+    <td class="sz">${fmtB(f.bytes)}</td></tr>`;
+}
+let hideWt = localStorage.getItem("aa-hide-wt") === "1";
+function wtVisible(f) { return !hideWt || !f.worktree; }
+function userListHtml() {
+  const files = DATA.files.filter(f => f.scope === "user" && wtVisible(f));
+  if (!files.length) return `<div class="root"><div class="proj-body" style="padding:16px">没有找到用户级指令文件。</div></div>`;
+  return `<div class="root"><div class="proj-body" style="padding:14px 16px">
+    <p style="color:var(--muted);font-size:12px;margin-bottom:10px">这些是按已知全局路径或 HOME 层级归类的用户级位置候选，不代表已被读取或对所有项目生效。加载条件、合并与覆盖方式取决于具体工具及配置，不能用目录深度统一推断。</p>
+    <table class="ft">${files.map(f => fileRow(f)).join("")}</table></div></div>`;
+}
+function usageListHtml() {
+  const body = RETIREMENT ? AtlasLifecycle.queueHtml(RETIREMENT, retirementBucket) : AtlasLifecycle.loadingHtml();
+  return `<div class="root"><div class="proj-body" style="padding:14px 16px">
+    <button class="btn" data-retire-refresh ${retirementBusy ? "disabled" : ""}>刷新观测 / 审阅状态</button>
+    ${usageError ? `<p style="color:var(--danger)">${esc(usageError)}</p>` : ""}${body}</div></div>`;
+}
+async function submitRetirementDecision(path, baseVersion, action) {
+  if (retirementBusy) return;
+  usageVersion++; usagePromise = null;
+  retirementBusy = true;
+  try {
+    const body = {path, baseVersion, action};
+    if (action === "snooze") body.snoozeDays = 30;
+    await api("/api/retirement/decision", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    RETIREMENT = await api("/api/retirement?days=30&staleDays=90");
+    usageError = "";
+    notice("审阅状态已记录并回读；原文件未修改。");
+  } catch (e) { notice("审阅失败或回读未完成：" + e.message); }
+  finally {
+    retirementBusy = false;
+    if (view.type === "usage") renderContent();
+    renderSidebar();
+  }
+}
+function dupListHtml() {
+  if (!DATA.dupGroups || !DATA.dupGroups.length)
+    return `<div class="root"><div class="proj-body" style="padding:16px">没有发现重复副本。</div></div>`;
+  const byPath = Object.fromEntries(DATA.files.map(f => [f.path, f]));
+  return `<div class="root"><div class="proj-body" style="padding:14px 16px">
+    <p style="color:var(--muted);font-size:12px;margin-bottom:10px">内容完全相同（SHA1 一致）的文件组。点击路径打开查看；编辑某一副本后保存，再点该组「同步到其余副本」即可统一更新（每个目标写盘前都有备份）。</p>
+    ${DATA.dupGroups.map((g, gi) => `
+      <div class="g" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <b>组 ${gi+1} · ×${g.length} 相同内容</b>
+          <button class="btn sync-btn" data-rep="${esc(g[0])}" data-n="${g.length}">以此为准，同步到其余 ${g.length-1} 份</button>
+        </div>
+        <table class="ft">${g.map((p, i) => `
+          <tr class="file-row" data-path="${esc(p)}"><td class="path">${i===0?'<span class="dup">源</span> ':''}${esc(p)}${fileGuideButton(p)}</td>
+              <td class="sz">${fmtB((byPath[p]||{}).bytes||0)}</td></tr>`).join("")}</table>
+      </div>`).join("")}</div></div>`;
+}
+function bindRows() {
+  // 全部走 document 捕获委托（绑定一次，任何时机渲染的元素都生效）
+  if (bindRows.done) return;
+  bindRows.done = true;
+  document.addEventListener("click", async (e) => {
+    const guidePath = e.target.closest('[data-guide-path]');
+    if (guidePath) { e.stopPropagation(); await openFileGuide(guidePath.dataset.guidePath); return; }
+    const guideType = e.target.closest('[data-guide-type]');
+    if (guideType) { e.stopPropagation(); selectFileGuideType(guideType.dataset.guideType); return; }
+    const guideProvenance = e.target.closest('[data-guide-provenance]');
+    if (guideProvenance) { e.stopPropagation(); return showProvenance(guideProvenance.dataset.guideProvenance || ""); }
+    const memoryToggle = e.target.closest('[data-memory-toggle]');
+    if (memoryToggle) {
+      e.stopPropagation();
+      const path = memoryToggle.dataset.memoryToggle;
+      memoryExpanded.has(path) ? memoryExpanded.delete(path) : memoryExpanded.add(path);
+      renderSidebar(); return;
+    }
+    const memoryDirectory = e.target.closest('[data-memory-dir]');
+    if (memoryDirectory) { e.stopPropagation(); navigateMemoryDirectory(memoryDirectory.dataset.memoryDir); return; }
+    const effectiveFile = e.target.closest("[data-effective-open]");
+    if (effectiveFile) {
+      e.stopPropagation();
+      if (await openFile(effectiveFile.dataset.effectiveOpen)) $("#eff-modal").classList.remove("open");
+      return;
+    }
+    const evidenceButton = e.target.closest("[data-usage-evidence], .use-badge");
+    if (evidenceButton) {
+      e.stopPropagation();
+      const path = evidenceButton.dataset.usageEvidence || evidenceButton.closest("tr.file-row")?.dataset.path;
+      if (path) await showUsageEvidence(path, e.clientX, e.clientY);
+      return;
+    }
+    const evidencePop = $("#reads-pop");
+    if (e.target.closest("[data-evidence-close]") || (evidencePop && !evidencePop.contains(e.target))) {
+      evidenceVersion++;
+      if (evidencePop) evidencePop.classList.remove("open");
+    }
+    const retireTab = e.target.closest("[data-retire-bucket]");
+    if (retireTab) { e.stopPropagation(); retirementBucket = retireTab.dataset.retireBucket; renderContent(); return; }
+    const retireAction = e.target.closest("[data-retire-action]");
+    if (retireAction) {
+      e.stopPropagation();
+      const row = retireAction.closest("tr[data-version]");
+      if (row && !retirementBusy) { retireAction.disabled = true; await submitRetirementDecision(row.dataset.path, row.dataset.version, retireAction.dataset.retireAction); }
+      return;
+    }
+    if (e.target.closest("[data-retire-refresh]")) {
+      e.stopPropagation();
+      await loadUsage();
+      if (view.type === "usage") renderContent();
+      renderSidebar(); return;
+    }
+    const dupB = e.target.closest(".dup-link");
+    if (dupB) { e.stopPropagation(); showDupPopover(dupB.dataset.dupSrc, e.clientX, e.clientY); return; }
+
+    const trB = e.target.closest(".tr-badge");
+    if (trB) {
+      e.stopPropagation();
+      const p = trB.dataset.trPath;
+      if (!trCache[p]) return;
+      if (current && current.path === p) { showTrView(trCache[p]); }
+      else openFile(p).then(() => { if (trCache[p] && current && current.path === p) showTrView(trCache[p]); });
+      return;
+    }
+    const syncB = e.target.closest(".sync-btn");
+    if (syncB) {
+      const rep = syncB.dataset.rep, n = parseInt(syncB.dataset.n, 10);
+      if (!confirm(`将把「${rep}」的当前内容写入其余 ${n-1} 份副本。\n\n所有目标文件都会先自动备份。确定继续？`)) return;
+      syncB.disabled = true; syncB.textContent = "同步中…";
+      try {
+        const d = await api("/api/sync-dups", { method: "POST", headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({ source: rep }) });
+        notice(`已同步 ${d.synced.length} 份（各带备份），正在重新扫描…`);
+        await api("/api/rescan", { method: "POST", headers: {"Content-Type":"application/json"}, body: "{}" });
+        await loadTree();
+        notice(`同步完成 ✓（${d.synced.length} 份写入，${d.errors.length} 份跳过）`);
+      } catch (err) { notice("同步失败: " + err.message); syncB.disabled = false;
+        syncB.textContent = "以此为准，同步到其余 " + (n-1) + " 份"; }
+      return;
+    }
+    const vb = e.target.closest(".vbtn[data-mode]");
+    if (vb) {
+      setView({ type: "proj", root: view.root, proj: view.proj, mode: vb.dataset.mode }); return; }
+    const gnode = e.target.closest(".gnode[data-path]");
+    if (gnode) { openFile(gnode.dataset.path); return; }
+    const sm = e.target.closest(".proj > summary");
+    if (sm) {
+      if (e.target.closest("tr.file-row")) return;   // 点文件行走文件
+      e.preventDefault();
+      setView({ type: "proj", root: sm.parentElement.dataset.proj,
+                proj: sm.parentElement.dataset.pname });
+      return;
+    }
+    const gp = e.target.closest(".gp[data-path]");
+    if (gp) { openFile(gp.dataset.path); return; }
+    const assetButton = e.target.closest("[data-asset-open]");
+    const tr = e.target.closest("tr.file-row");
+    if (assetButton || tr) {
+      const el = assetButton || tr;
+      openFile(el.dataset.assetOpen || el.dataset.path, { startLine: Number(el.dataset.startLine), endLine: Number(el.dataset.endLine) }); return;
+    }
+    // 点击空白处时关闭重复浮层
+    const pop = $("#dup-pop");
+    if (pop && pop.classList.contains("open") && !pop.contains(e.target)) pop.classList.remove("open");
+  }, true);   // 捕获阶段：先于一切元素级监听，杜绝绑定时机问题
+}
+function navigationSnapshot() {
+  return {view: {...view}, assetFilters: {...assetFilters}, assetPage,
+    search: {...searchState}, catalog: ASSETS,
+    memory: {filters: {...memoryFilters}, local: {...memoryLocal}, page: memoryPage,
+      recursive: memoryRecursive, expanded: [...memoryExpanded], data: MEMORIES, error: memoryError}};
+}
+function setView(v, noHist, previous) {
+  if (!noHist && view && (previous || JSON.stringify(view) !== JSON.stringify(v))) {
+    hist.push(previous || navigationSnapshot());
+    if (hist.length > 60) hist.shift();
+  }
+  $("#notice").style.display = "none"; $("#notice").textContent = "";
+  invalidateAssetSearch();
+  const reuseMemories = v.type === 'memories' && view.type === 'memories' && !!MEMORIES;
+  if (!reuseMemories) clearMemoryView();
+  else memoryPage = 0;
+  if (v.type !== "assets") {
+    $("#search").value = ""; searchState.q = ""; searchState.results = null;
+    searchState.error = ""; searchState.warning = "";
+  }
+  view = v; renderContent(); renderSidebar(); updateBackBtn();
+  if (view.type === "memories" && !reuseMemories) loadMemories();
+}
+let hist = [];
+function goBack() {
+  const prev = hist.pop();
+  if (!prev) return;
+  if (!prev.view) { setView(prev, true); return; }
+  $("#notice").style.display = "none"; $("#notice").textContent = "";
+  invalidateAssetSearch();
+  clearMemoryView();
+  Object.assign(assetFilters, prev.assetFilters);
+  assetPage = prev.assetPage;
+  Object.assign(searchState, prev.search, {loading: false});
+  const sameCatalog = prev.catalog === ASSETS;
+  if (searchState.q && (!sameCatalog || prev.search.loading)) {
+    searchState.results = null; searchState.total = null; searchState.error = "";
+    searchState.warning = !sameCatalog ? "文件清单已更新，请手动重新提交检索；不会自动发送云端查询。"
+      : "此前检索未完成，请手动重新提交；不会自动发送云端查询。";
+  }
+  $("#search").value = searchState.q;
+  $("#search-mode").value = searchState.mode;
+  syncAtlasSelect($("#search-mode"));
+  renderAssetFacets();
+  Object.assign(memoryFilters, prev.memory.filters);
+  Object.assign(memoryLocal, prev.memory.local);
+  memoryPage = prev.memory.page; memoryRecursive = prev.memory.recursive;
+  memoryExpanded.clear(); prev.memory.expanded.forEach(path => memoryExpanded.add(path));
+  view = {...prev.view};
+  if (view.type === 'memories' && sameCatalog) { MEMORIES = prev.memory.data; memoryError = prev.memory.error; }
+  renderContent(); renderSidebar(); updateBackBtn();
+  if (view.type === 'memories' && !MEMORIES) loadMemories();
+}
+function updateBackBtn() {
+  const b = $("#btn-back");
+  if (b) b.style.visibility = hist.length ? "visible" : "hidden";
+}
+
+function renderSidebar() {
+  const simple = (id, name, count, cls) => `
+    <div class="nav-item ${view.type===id?'active':''} ${cls||''}"
+         data-nav="${id}">
+      <span class="nav-name">${esc(name)}</span><span class="nav-count">${count}</span></div>`;
+  const memoryCount = MEMORIES ? esc(MEMORIES.counts.total) : ASSETS ? ASSETS.files.filter(f => f.category === "memory").length : "…";
+  if (!DATA) {
+    $("#sidebar").innerHTML = '<div class="sec">总览</div>' + simple("assets", "全部文件", ASSETS ? esc(ASSETS.totalFiles ?? ASSETS.files.length) : "…") + simple("memories", "记忆作用域", memoryCount) + memoryDirectorySidebarHtml();
+    $("#sidebar").querySelectorAll('[data-nav]').forEach(el => el.addEventListener("click", () => setView({ type: el.dataset.nav })));
+    return;
+  }
+  const userN = mapSummary(DATA.files.filter(f => f.scope === "user")).count;
+  const shownN = DATA.files.filter(f => wtVisible(f)).length;
+  const usageN = RETIREMENT ? RETIREMENT.counts.review : null;
+  const rootItem = (r) => {
+    const open = openRoots.has(r.name);
+    const active = view.type==='root' && view.root===r.name;
+    const kids = open ? `<div class="nav-kids open">${r.projects.map(p => `
+      <div class="nav-item ${view.type==='proj'&&view.root===r.name&&view.proj===p.name?'active':''}"
+           data-nav="proj:${esc(r.name)}|${esc(p.name)}">
+        <span class="nav-name">${esc(p.name)}</span><span class="nav-count" title="当前显示 / 总计">${mapSummary(mapFiles(r.name, p.name)).count}</span></div>`).join("")}</div>` : "";
+    return `
+      <div class="nav-item ${active?'active':''}" data-nav="root:${esc(r.name)}">
+        <span class="nav-caret ${open?'open':''}" data-caret="${esc(r.name)}">▶</span>
+        <span class="nav-name">${esc(r.name)}</span><span class="nav-count" title="当前显示 / 总计">${mapSummary(mapFiles(r.name)).count}</span>
+      </div>${kids}`;
+  };
+  $("#sidebar").innerHTML = `
+    <div class="sec">总览</div>
+    ${simple("assets", "全部文件", ASSETS ? esc(ASSETS.totalFiles ?? ASSETS.files.length) : "…")}
+    ${simple("memories", "记忆作用域", memoryCount)}
+    ${simple("all", "指令地图", shownN)}
+    ${simple("user", "用户级指令", userN)}
+    ${simple("dup", "重复副本", DATA.dupFiles, DATA.dupFiles ? "danger" : "")}
+    ${simple("usage", "曝光 / 淘汰审阅", usageN === null ? "…" : usageN)}
+    ${view.type === 'memories' && view.mode === 'directory' ? memoryDirectorySidebarHtml() : '<div class="sec">根目录</div>' + DATA.roots.map(rootItem).join("")}`;
+  document.querySelectorAll("[data-caret]").forEach(c => c.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const n = c.dataset.caret;
+    openRoots.has(n) ? openRoots.delete(n) : openRoots.add(n);
+    renderSidebar();
+  }));
+  document.querySelectorAll(".nav-item[data-nav]").forEach(el =>
+    el.addEventListener("click", () => {
+      const nav = el.dataset.nav;
+      if (nav === "assets") setView({ type: "assets" });
+      else if (nav === "memories") setView({ type: "memories" });
+      else if (nav === "all") setView({ type: "all" });
+      else if (nav === "user") setView({ type: "user" });
+      else if (nav === "dup") setView({ type: "dup" });
+      else if (nav === "usage") setView({ type: "usage" });
+      else if (nav.startsWith("root:")) setView({ type: "root", root: nav.slice(5) });
+      else if (nav.startsWith("proj:")) {
+        const [root, proj] = nav.slice(5).split("|");
+        openRoots.add(root);
+        setView({ type: "proj", root, proj });
+      }
+    }));
+}
+
+/* ---------- 内容区 ---------- */
+function renderSnapshotStatus() {
+  const stamp = value => Number.isFinite(value) ? fmtT(value) : '未读取';
+  const parts = [`指令地图快照 ${stamp(DATA?.generatedAt)}`, `文件库快照 ${stamp(ASSETS?.generatedAt)}`];
+  const mismatch = DATA && ASSETS && Number.isFinite(ASSETS.instructionGeneratedAt)
+    && DATA.generatedAt !== ASSETS.instructionGeneratedAt;
+  if (assetJobStarting || assetStatus?.job?.running) parts.push('更新中，暂显示已有快照');
+  if (treeError) parts.push(treeError);
+  if (assetsError) parts.push(assetsError);
+  // The file-library status line is hidden in map/memory views.
+  if (view.type !== 'assets') {
+    if (assetStatusError) parts.push(assetStatusError);
+    else if (assetStatus?.job?.error) parts.push('任务错误：' + assetStatus.job.error);
+  }
+  if (mismatch) parts.push('清单版本未对齐，请重新扫描或等待当前任务完成');
+  if (DATA && ASSETS) {
+    const available = new Set(ASSETS.files.map(f => f.path));
+    const missing = DATA.files.filter(f => !available.has(f.path)).length;
+    if (missing) parts.push(`${missing} 条地图记录不在安全文件库（可能已删除或受限）；可重新扫描核对`);
+  }
+  $("#snapshot-status").textContent = parts.join(' · ');
+}
+function renderContent() {
+  renderSnapshotStatus();
+  $("#asset-tools").hidden = view.type !== "assets";
+  $("#memory-tools").hidden = view.type !== "memories";
+  if (view.type === "assets") { renderAssetLibrary(); return; }
+  if (view.type === "memories") { renderMemoryScope(); return; }
+  if (!DATA) return;
+  const s = $("#stats");
+  if (view.type === "all") {
+    const summary = mapSummary(DATA.files);
+    s.innerHTML = mapStatsHtml(summary) + `
+      <div class="stat"><b>${summary.shown.filter(f => !f.dup).length}</b>显示的唯一文件</div>
+      <div class="stat dupe"><b>${summary.shown.filter(f => f.dup).length}</b>显示的重复副本</div>
+      <div class="stat"><b>${DATA.roots.length}</b>根目录</div>
+      <div class="stat"><b>${DATA.durationMs}ms</b>扫描耗时</div>`;
+  } else if (view.type === "dup" || view.type === "usage") {
+    s.innerHTML = "";
+  } else if (view.type === "user") {
+    s.innerHTML = mapStatsHtml(mapSummary(DATA.files.filter(f => f.scope === "user")));
+  } else if (view.type === "root") {
+    const r = rootByName(view.root);
+    const summary = mapSummary(mapFiles(view.root));
+    s.innerHTML = r ? mapStatsHtml(summary) + `
+      <div class="stat"><b>${r.projects.length}</b>项目</div>
+      <div class="stat"><b>${summary.mtime ? fmtT(summary.mtime) : '—'}</b>显示文件最近修改</div>` : "";
+  } else {
+    const p = projOf(rootByName(view.root), view.proj);
+    const summary = mapSummary(mapFiles(view.root, view.proj));
+    s.innerHTML = p ? mapStatsHtml(summary) + `
+      <div class="stat"><b>${summary.mtime ? fmtT(summary.mtime) : '—'}</b>显示文件最近修改</div>` : "";
+  }
+  renderCrumb();
+  if (view.type === "all") $("#content").innerHTML = dupBoxHtml() + wtBarHtml() + allRootsHtml();
+  else if (view.type === "dup") $("#content").innerHTML = dupListHtml();
+  else if (view.type === "user") $("#content").innerHTML = wtBarHtml(DATA.files.filter(f => f.scope === "user")) + userListHtml();
+  else if (view.type === "usage") $("#content").innerHTML = usageListHtml();
+  else if (view.type === "root") $("#content").innerHTML = wtBarHtml(mapFiles(view.root)) + oneRootHtml(view.root);
+  else $("#content").innerHTML = wtBarHtml(mapFiles(view.root, view.proj)) + oneProjHtml(view.root, view.proj);
+  bindRows();
+  refreshTrBadges();
+  const bw = document.querySelector("#btn-wt");
+  if (bw) bw.addEventListener("click", toggleWt);
+}
+
+function renderCrumb() {
+  const inner = $("#crumb-inner");
+  let c = `<a data-crumb="all">指令地图</a>`;
+  if (view.type === "dup") c += `<span class="sep">›</span>重复副本`;
+  else if (view.type === "user") c += `<span class="sep">›</span>用户级指令`;
+  else if (view.type === "root") {
+    c += `<span class="sep">›</span>${esc(view.root)}`;
+  } else if (view.type === "proj") {
+    c += `<span class="sep">›</span><a data-crumb="root:${esc(view.root)}">${esc(view.root)}</a>
+          <span class="sep">›</span>${esc(view.proj)}`;
+  }
+  inner.innerHTML = c;
+  inner.querySelectorAll("a[data-crumb]").forEach(a => a.addEventListener("click", () => {
+    const nav = a.dataset.crumb;
+    setView(nav === "all" ? { type: "all" } : { type: "root", root: nav.slice(5) });
+  }));
+}
+
+function dupBoxHtml() {
+  if (!DATA.dupGroups || !DATA.dupGroups.length) return "";
+  return `
+    <details class="dupbox"><summary>重复副本 ${DATA.dupGroups.length} 组（点开查看，或去侧边栏「重复副本」）</summary>
+      <div class="dup-body">${DATA.dupGroups.map(g => `
+        <div class="g"><b>×${g.length} 相同内容</b>
+          ${g.map(p => `<span class="gp" data-path="${esc(p)}" style="font-family:var(--mono);font-size:11px;color:var(--accent);word-break:break-all;display:block;cursor:pointer">${esc(p)}</span>`).join("")}
+        </div>`).join("")}</div>
+    </details>`;
+}
+function allRootsHtml() {
+  return DATA.roots.map(r => {
+    const summary = mapSummary(mapFiles(r.name));
+    return `
+    <details class="root" open>
+      <summary><span class="rname">${esc(r.name)}</span>
+        <span class="rmeta">${summary.bytesLabel} · 显示文件最近 ${summary.mtime ? fmtT(summary.mtime) : '—'}</span>
+        <span class="rcount">${summary.countLabel} · ${r.projects.length} 项目</span></summary>
+      <div class="proj-list">${r.projects.map(p => projectHtml(r, p)).join("")}</div>
+    </details>`;
+  }).join("");
+}
+function projectHtml(r, p) {
+  const summary = mapSummary(mapFiles(r.name, p.name));
+  const rows = summary.shown.map(f => fileRow(f, "rel")).join("");
+  return `
+    <details class="proj" data-proj="${esc(r.name)}" data-pname="${esc(p.name)}">
+      <summary><span class="pname">${esc(p.name)}</span>
+        <span class="pmeta">${summary.bytesLabel} · 显示文件最近 ${summary.mtime ? fmtT(summary.mtime) : '—'} · 点击进入项目视图</span>
+        <span class="rcount">${summary.countLabel}</span></summary>
+      <div class="proj-body">
+        <table class="ft">${rows}</table>
+      </div>
+    </details>`;
+}
+function oneRootHtml(name) {
+  const r = rootByName(name);
+  if (!r) return `<div class="root"><div class="proj-body" style="padding:16px">未找到该根目录。</div></div>`;
+  const summary = mapSummary(mapFiles(name));
+  return `
+    <details class="root" open>
+      <summary><span class="rname">${esc(r.name)}</span>
+        <span class="rmeta">${summary.bytesLabel} · 显示文件最近 ${summary.mtime ? fmtT(summary.mtime) : '—'}</span>
+        <span class="rcount">${summary.countLabel} · ${r.projects.length} 项目</span></summary>
+      <div class="proj-list">${r.projects.map(p => projectHtml(r, p)).join("")}</div>
+    </details>`;
+}
+function oneProjHtml(rootName, projName) {
+  const files = filesOf(rootName, projName);
+  if (!files.length) return `<div class="root"><div class="proj-body" style="padding:14px 16px">当前没有可见文件。${mapFiles(rootName, projName).length ? '可在上方显示隐藏的 worktree 副本。' : '此分组已不在当前指令快照中。'}</div></div>`;
+  const mode = view.mode || "list";
+  const bar = `<div class="viewbar">
+    <span class="vb-label">视图</span>
+    <button class="vbtn ${mode==='list'?'on':''}" data-mode="list">列表</button>
+    <button class="vbtn ${mode==='graph'?'on':''}" data-mode="graph">结构图</button>
+    <span class="vb-hint">${mode==='graph' ? "点击文件节点打开 · 单链目录已合并" : ""}</span>
+  </div>`;
+  const body = mode === "graph"
+    ? `<div class="graph-wrap">${projGraphSvg(rootName, projName)}</div>`
+    : `<table class="ft">${files.map(f => fileRow(f, "rel")).join("")}</table>`;
+  return `
+    <div class="root">
+      <div class="proj-body" style="padding:14px 16px">${bar}${body}</div>
+    </div>`;
+}
+
+/* ---------- 结构图：目录树 → SVG ---------- */
+function projGraphSvg(rootName, projName) {
+  const files = filesOf(rootName, projName);
+  const root = { name: projName, dir: true, children: new Map(), file: null };
+  files.forEach(f => {
+    const segs = (f.sub ? f.sub.split("/") : []).concat([f.name]);
+    let cur = root;
+    segs.forEach((s, i) => {
+      if (!cur.children.has(s))
+        cur.children.set(s, { name: s, dir: i < segs.length - 1,
+                              children: new Map(), file: null });
+      cur = cur.children.get(s);
+      if (i === segs.length - 1) cur.file = f;
+    });
+  });
+  // 压缩单链目录：a → b → c 合并为 a/b/c（保留完整链路名）
+  const compress = (n) => {
+    let node = n;
+    const names = [n.name];
+    while (node.dir && node.children.size === 1) {
+      const only = node.children.values().next().value;
+      if (!only.dir) break;
+      node = only;
+      names.push(node.name);
+    }
+    n.name = names.join("/");
+    if (node !== n) { n.children = node.children; n.file = node.file; }
+    n.children.forEach(compress);
+    n.children = new Map([...n.children.entries()]
+      .sort((a, b) => (b[1].dir - a[1].dir) || a[0].localeCompare(b[0])));
+  };
+  compress(root);
+  // 布局：深度缩进 + 行高
+  const ROW = 32, IND = 24, NODE_H = 24, PAD = 16, PADT = 14, CHAR_W = 6.8;
+  const laid = [];
+  let y = PADT;
+  const walk = (n, depth) => {
+    laid.push({ n, depth, y });
+    y += ROW;
+    n.children.forEach(c => walk(c, depth + 1));
+  };
+  walk(root, 0);
+  const parentOf = new Map();
+  const yOf = new Map();
+  laid.forEach(o => yOf.set(o.n, o.y));
+  const walkP = (n) => n.children.forEach(c => { parentOf.set(c, n); walkP(c); });
+  walkP(root);
+  const depthOf = new Map();
+  laid.forEach(o => depthOf.set(o.n, o.depth));
+  let maxRight = 300;
+  laid.forEach(o => { maxRight = Math.max(maxRight,
+    PAD + o.depth * IND + o.n.name.length * CHAR_W + 130); });
+  const W = Math.max(maxRight, 560), H = y + PADT;
+  let edges = "", boxes = "";
+  laid.forEach(o => {
+    const p = parentOf.get(o.n);
+    if (p) {
+      const px = PAD + depthOf.get(p) * IND + 8, py = yOf.get(p) + NODE_H;
+      const cx = PAD + o.depth * IND + 8, cy = o.y;
+      const mx = (px + cx) / 2;
+      edges += `<path class="gedge" d="M${px} ${py} V ${(py + cy) / 2} H ${cx} V ${cy}"></path>`;
+    }
+    const x = PAD + o.depth * IND;
+    const wNode = Math.min(o.n.name.length * CHAR_W + (o.n.file ? 92 : 24), W - x - 10);
+    const label = o.n.file ? `${o.n.name} · ${fmtB(o.n.file.bytes)}` : o.n.name;
+    boxes += `<g class="gnode ${o.n.dir ? "dir" : "file"}"${o.n.file ? ` data-path="${esc(o.n.file.path)}"` : ""}>
+      <rect x="${x}" y="${o.y}" rx="5" width="${wNode}" height="${NODE_H}"></rect>
+      <text x="${x + 10}" y="${o.y + 16}">${esc(label)}</text></g>`;
+  });
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="目录结构图">${edges}${boxes}</svg>`;
+}
+
+/* ---------- 查看 / 编辑 ---------- */
+let current = null, viewerVersion = 0, viewerLoading = false, fileSaving = false;
+function isFileEditable(d) {
+  return !!d && d.editable === true && !d.truncated && !["config", "session", "log"].includes(d.category) &&
+    !/\.(?:sh|bash|zsh|fish|py|pyw|js|mjs|cjs|ts|tsx|jsx|rb|pl|php|ps1|bat|cmd|exe|app)$/i.test(d.path || "");
+}
+function updateViewerAccess() {
+  const guide = current?.fileGuide;
+  const summary = guide ? `设计用途 · ${guide.label || "未识别类型"}：${guide.purpose || "用途尚未记录"}` :
+    current?.fileGuideError ? "文件说明暂不可用：" + current.fileGuideError : "文件类型说明尚未加载";
+  $("#v-file-guide").hidden = !current || viewerLoading;
+  $("#v-file-guide-summary").textContent = summary;
+  $("#v-file-guide-summary").title = summary + " · 设计说明不证明本次实际读取";
+  $("#v-file-guide-open").disabled = !current || viewerLoading || fileSaving;
+  $("#v-memory").hidden = current?.category !== "memory";
+  $("#v-memory-body").innerHTML = current?.category === "memory" ? memorySemanticsHtml(current.semantics) : "";
+  const editable = isFileEditable(current), busy = viewerLoading || fileSaving;
+  $('#v-directory').hidden = current?.category !== 'memory';
+  $('#v-directory').disabled = busy || current?.category !== 'memory' || !current.memoryStorage?.directory;
+  $("#v-text").readOnly = !editable || busy;
+  $("#v-save").disabled = !editable || busy || trMode || secMode;
+  $("#v-open").disabled = !editable || busy;
+  $("#v-reload").disabled = !current || busy;
+  $("#v-sections").disabled = !current || busy;
+  const instruction = current?.category === "instruction";
+  $("#v-effective").disabled = !instruction || busy;
+  $("#v-translate").disabled = !editable || busy;
+  $("#v-sec").querySelectorAll("textarea").forEach(el => { el.readOnly = !editable || busy; });
+  $("#v-sec").querySelectorAll(".sec-save").forEach(el => { el.disabled = !editable || busy; });
+  $("#v-policy").textContent = !current ? "" : editable ? "可编辑 · 保存使用 SHA-256 校验，防止覆盖外部修改" :
+    "只读 · " + (current.readOnlyReason || (current.truncated ? "内容已截断，不能写回" : "文件安全策略禁止修改"));
+}
+function editorText(content) { return String(content).replace(/\r\n?/g, "\n"); }
+function viewerHasDrafts() {
+  return !!current && isFileEditable(current) && ($("#v-text").value !== editorText(current.content) ||
+    [...$("#v-sec").querySelectorAll("textarea")].some(el => el.value !== el.defaultValue));
+}
+function closeViewer() {
+  if (viewerHasDrafts() && !confirm("有未保存的修改，确定关闭并放弃？")) return;
+  viewerVersion++; viewerLoading = false;
+  $("#viewer").classList.remove("open"); current = null; updateViewerAccess();
+}
+function selectSourceLines(startLine, endLine) {
+  if (!Number.isInteger(startLine) || startLine < 1) return;
+  const ta = $("#v-text"), lines = ta.value.split("\n");
+  if (startLine > lines.length) { msg(`匹配位于 L${startLine}，超出当前可预览范围（内容可能已变化或截断）`, true); return; }
+  const last = Math.min(lines.length, Number.isInteger(endLine) ? Math.max(startLine, endLine) : startLine);
+  const start = lines.slice(0, startLine - 1).reduce((n, s) => n + s.length + 1, 0);
+  const end = Math.min(ta.value.length, lines.slice(0, last).reduce((n, s) => n + s.length + 1, 0));
+  resetSec(); resetTr(); showPanel("raw"); updateViewerAccess();
+  ta.focus(); ta.setSelectionRange(start, end); ta.scrollTop = Math.max(0, (startLine - 3) * 19.2);
+  msg(`已定位 L${startLine}–${last}${current?.truncated ? " · 预览已截断" : ""}`);
+}
+async function openFile(path, options = {}) {
+  const knownAsset = ASSETS?.files.find(f => f.path === path) || MEMORIES?.files.find(f => f.path === path);
+  const blockedMemory = [MEMORIES?.files.find(f => f.path === path), knownAsset].find(f => f?.category === "memory" && memoryPreviewBlocked(f));
+  if (blockedMemory) {
+    notice((blockedMemory.memoryInfo?.status === "unavailable" ? "源文件不可用，不预览或编辑：" : "仅元数据，不预览或编辑：") + (blockedMemory.memoryInfo?.reason || blockedMemory.reason || "该记忆未纳入安全文本内容范围")); return false;
+  }
+  if (current?.path === path && !viewerLoading && !options.reload) {
+    $("#viewer").classList.add("open");
+    if (!secMode || !viewerHasDrafts() || confirm("定位原文会放弃未保存的组件修改，继续？")) selectSourceLines(options.startLine, options.endLine);
+    return true;
+  }
+  if (viewerHasDrafts() && !confirm("有未保存的修改，确定放弃并重新读取文件？")) return false;
+  const version = ++viewerVersion;
+  viewerLoading = true; updateViewerAccess(); msg("正在读取文件…");
+  try {
+    const d = await api("/api/file?path=" + encodeURIComponent(path));
+    if (version !== viewerVersion) return false;
+    const asset = ASSETS?.files.find(f => f.path === path) || knownAsset;
+    const meta = DATA?.files.find(f => f.path === path) || {};
+    current = { ...d, category: d.category || asset?.category || (meta.kind ? "instruction" : "other") };
+    resetTr(); resetSec(); showPanel("raw");
+    $("#v-sections").textContent = "组件";
+    $("#v-name").textContent = asset?.name || meta.name || path.split("/").pop();
+    $("#v-tags").innerHTML = asset || current.category === "memory" ? `<span class="tag t-other">${esc(d.platform || asset?.platform || "—")} · ${esc(CATEGORY_LABELS[current.category] || current.category)}${current.category === "memory" && (d.profile || asset?.profile) ? " · " + esc(d.profile || asset.profile) : ""}</span>` : kindTag(meta.kind || "other") + (meta.dup ? ' <span class="dup">重复副本之一</span>' : "");
+    $("#v-path").textContent = d.path;
+    $("#v-text").value = d.content;
+    msg(`${d.content.length} 字符 · ${d.content.split("\n").length} 行${Number.isFinite(d.mtime) ? " · 修改于 " + fmtT(d.mtime) : ""}`);
+    $("#viewer").classList.add("open");
+    selectSourceLines(options.startLine, options.endLine);
+    return true;
+  } catch (e) { if (version === viewerVersion) { msg(e.message, true); notice("文件读取失败：" + e.message); } return false; }
+  finally { if (version === viewerVersion) { viewerLoading = false; updateViewerAccess(); } }
+}
+function msg(t, err) { const m = $("#v-msg"); m.textContent = t || "";
+  m.className = "vmsg" + (err ? " err" : ""); }
+async function saveFile() {
+  if (!isFileEditable(current) || viewerLoading || fileSaving || trMode || secMode) return;
+  if (!current.sha256) { msg("缺少文件校验值，请重新读取后再保存。", true); return; }
+  const loaded = current, version = viewerVersion, ta = $("#v-text"), content = ta.value;
+  const position = [ta.selectionStart, ta.selectionEnd, ta.scrollTop];
+  fileSaving = true; updateViewerAccess();
+  try {
+    const d = await api("/api/save", { method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ path: loaded.path, content, baseSha256: loaded.sha256, baseMtime: loaded.mtime }) });
+    const fresh = await api("/api/file?path=" + encodeURIComponent(loaded.path));
+    delete trCache[loaded.path];
+    if (version !== viewerVersion || current !== loaded) return;
+    if (editorText(fresh.content) !== content) { msg("保存后磁盘回读内容不一致，保留当前编辑内容；请重新读取核对。", true); return; }
+    current = fresh;
+    if (ta.value === content) ta.value = fresh.content;
+    ta.setSelectionRange(position[0], position[1]); ta.scrollTop = position[2];
+    refreshTrBadges();
+    msg(d.changed ? `已保存并核验 ✓${d.backup ? " 备份 " + d.backup.split("/").pop() : ""}` : "内容未变化，已刷新校验值", false);
+  } catch (e) { if (version === viewerVersion) msg("保存或回读失败：" + e.message, true); }
+  finally { fileSaving = false; updateViewerAccess(); }
+}
+$("#v-save").addEventListener("click", saveFile);
+$("#v-close").addEventListener("click", closeViewer);
+$("#v-file-guide-open").addEventListener("click", () => {
+  if (current && !viewerLoading && !fileSaving) return openFileGuide(current.path);
+});
+$("#v-reload").addEventListener("click", () => { if (current && !fileSaving) openFile(current.path, { reload: true }); });
+$('#v-directory').addEventListener('click', () => {
+  if (viewerLoading || fileSaving || current?.category !== 'memory' || !current.memoryStorage?.directory) return;
+  const previous = navigationSnapshot();
+  const directory = current.memoryStorage.directory;
+  const filtered = Object.values(memoryFilters).some(Boolean) || Object.values(memoryLocal).some(Boolean);
+  for (const key of Object.keys(memoryFilters)) memoryFilters[key] = '';
+  for (const key of Object.keys(memoryLocal)) memoryLocal[key] = '';
+  memoryRecursive = false;
+  clearMemoryView();
+  for (const path of current.memoryStorage.ancestors || []) memoryExpanded.add(path);
+  setView({type:'memories', mode:'directory', directory}, false, previous);
+  if (filtered) notice('已清除记忆筛选，定位到所在目录；编辑草稿保留。');
+});
+$("#v-open").addEventListener("click", async () => {
+  if (!isFileEditable(current) || viewerLoading || fileSaving) return;
+  try {
+    await api("/api/open", { method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ path: current.path }) });
+    msg("已在系统默认应用中打开");
+  } catch (e) { msg(e.message, true); }
+});
+document.addEventListener("keydown", (e) => {
+  if ($("#file-guide-dialog").open || $("#search-settings").open) return;
+  if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); saveFile(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === "b") { e.preventDefault(); toggleSb(); }
+  if (e.key === "Escape" && $("#viewer").classList.contains("open")) closeViewer();
+  if (e.key === "/" && !document.activeElement?.matches("input, textarea, select, [contenteditable]")) {
+    e.preventDefault(); $("#search").focus();
+  }
+});
+
+/* ---------- 侧边栏收起/展开 ---------- */
+function toggleSb() { setSb(!document.body.classList.contains("sb-collapsed")); }
+function setSb(collapsed) {
+  document.body.classList.toggle("sb-collapsed", collapsed);
+  localStorage.setItem("aa-sb-collapsed", collapsed ? "1" : "0");
+}
+if (localStorage.getItem("aa-sb-collapsed") === "1") document.body.classList.add("sb-collapsed");
+$("#btn-sb").addEventListener("click", toggleSb);
+$("#sb-rail").addEventListener("click", () => setSb(false));
+
+/* ---------- 独立文件库（不污染指令地图 DATA） ---------- */
+function assetPageRows() {
+  const files = (ASSETS?.files || []).filter(f => Object.entries(assetFilters).every(([key, value]) => !value || f[key] === value));
+  assetPage = Math.min(Math.max(0, assetPage), Math.max(0, Math.ceil(files.length / ASSET_PAGE_SIZE) - 1));
+  const start = assetPage * ASSET_PAGE_SIZE;
+  return { rows: files.slice(start, start + ASSET_PAGE_SIZE), total: files.length, start };
+}
+function assetScope(f) {
+  const scope = { global: "全局位置", user: "全局位置", project: "项目位置", profile: "配置档位置" }[f.scope] || f.scope || "位置未标注";
+  return scope + (f.profile ? " · " + f.profile : "");
+}
+function assetRowHtml(f) {
+  const line = Number.isInteger(f.startLine) && f.startLine > 0 ? f.startLine : 0;
+  const end = Number.isInteger(f.endLine) && f.endLine >= line ? f.endLine : line;
+  const detail = line ? `L${line}–${end} · ${f.matchType || "匹配"}` : assetScope(f);
+  const shortPath = String(f.path || "").replace(/^\/Users\/[^/]+\//, "~/");
+  if (f.category === "memory" && memoryPreviewBlocked(f)) return `<tr>
+    <td class="path">${esc(f.name || f.path)}${fileGuideButton(f.path)}<div class="asset-path">${esc(shortPath)}</div><div class="asset-meta">${f.memoryInfo?.status === "unavailable" ? "源文件不可用" : "仅元数据"} · 不预览或编辑</div><div class="asset-path">${esc(f.memoryInfo?.reason || f.reason || "该记忆未纳入安全文本内容范围")}</div></td>
+    <td class="asset-meta">${esc(f.platform || "—")}<br>记忆</td><td class="asset-path">${esc(f.project || "—")}</td><td class="sz">${Number.isFinite(f.bytes) ? fmtB(f.bytes) : "—"}</td></tr>`;
+  return `<tr class="file-row" data-path="${esc(f.path)}" data-start-line="${line}" data-end-line="${end}">
+    <td class="path"><button type="button" class="asset-file" data-asset-open="${esc(f.path)}" data-start-line="${line}" data-end-line="${end}">${esc(f.name || String(f.path).split("/").pop())}</button><span class="tr-badge" data-tr-path="${esc(f.path)}" style="display:none" title="点击查看译文">已翻译</span>${fileGuideButton(f.path)}
+      <div class="asset-path">${esc(shortPath)}</div>${f.snippet != null ? `<pre class="asset-snippet">${esc(f.snippet)}</pre>` : ""}
+      <div class="asset-meta">${esc(detail)}${f.editable === false ? " · 只读" : ""}${f.searchable === false ? " · 不索引内容" : ""}</div>
+      ${f.reason ? `<div class="asset-path">${esc(f.reason)}</div>` : ""}</td>
+    <td class="asset-meta">${esc(f.platform || "—")}<br>${esc(CATEGORY_LABELS[f.category] || f.category || "其他")}</td>
+    <td class="asset-path">${esc(f.project || "—")}</td>
+    <td class="sz">${Number.isFinite(f.bytes) ? fmtB(f.bytes) : "—"}${Number.isFinite(f.mtime) ? `<br>${fmtT(f.mtime)}` : ""}</td></tr>`;
+}
+function renderAssetLibrary() {
+  $("#crumb-inner").textContent = searchState.q ? "全部文件 › 内容检索" : "全部文件";
+  $("#stats").innerHTML = "";
+  const page = assetPageRows(), searching = !!searchState.q;
+  const rows = searching ? (searchState.results || []).slice(0, 50) : page.rows;
+  let summary = searching ? (searchState.results !== null
+    ? `匹配 ${searchState.total == null ? "数量未知" : esc(searchState.total)} 条 · 显示 ${rows.length} 条（最多 50 条，请细化检索）`
+    : (searchState.loading ? "正在检索…" : "按 Enter 或点击搜索提交；向量 / 混合查询会将查询文本发送到云端。"))
+    : `筛选后 ${page.total} 个文件 · 显示 ${page.total ? page.start + 1 : 0}–${page.start + rows.length} · 文件库共 ${esc(ASSETS?.totalFiles ?? "…")} 个`;
+  if (!ASSETS && !searching) summary = assetsError ? "文件库暂不可用" : "正在读取文件库…";
+  const scanErrors = ASSETS?.scanErrors;
+  const errorCount = Array.isArray(scanErrors) ? scanErrors.length : (typeof scanErrors === "number" ? scanErrors : 0);
+  $("#content").innerHTML = `<div class="root"><div class="proj-body" style="padding:12px 16px">
+    <div class="asset-pagination">${summary}</div>
+    ${searchState.error || assetsError ? `<p class="asset-hint" style="color:var(--danger)">${esc(searchState.error || assetsError)}</p>` : ""}
+    ${searchState.warning ? `<p class="asset-hint" style="color:var(--warn)">${esc(searchState.warning)}</p>` : ""}
+    ${errorCount ? `<p class="asset-hint">扫描有 ${errorCount} 处错误；部分位置可能未收录。</p>` : ""}
+    <table class="ft asset-table"><thead><tr><th>文件 / 内容</th><th>平台 / 类别</th><th>项目</th><th>大小 / 修改时间</th></tr></thead><tbody>${rows.map(assetRowHtml).join("")}</tbody></table>
+    ${!rows.length && ASSETS && !searchState.loading && (!searching || searchState.results !== null) ? '<p class="asset-hint">没有匹配的文件或内容。可清除筛选，或更新本地索引。</p>' : ""}
+    ${!searching ? `<div class="asset-pagination"><button class="btn" data-asset-page="-1" ${assetPage === 0 ? "disabled" : ""}>上一页</button><span>每页最多 ${ASSET_PAGE_SIZE} 个</span><button class="btn" data-asset-page="1" ${page.start + rows.length >= page.total ? "disabled" : ""}>下一页</button></div>` : ""}
+    </div></div>`;
+  bindRows();
+  $("#content").querySelectorAll("[data-asset-page]").forEach(b => b.addEventListener("click", () => { assetPage += Number(b.dataset.assetPage); renderAssetLibrary(); }));
+  refreshTrBadges();
+}
+function renderAssetFacets() {
+  for (const key of Object.keys(assetFilters)) {
+    const el = $("#asset-" + key), label = { platform: "平台", category: "类别", project: "项目" }[key];
+    const counts = new Map();
+    for (const f of ASSETS?.files || []) if (f[key]) counts.set(f[key], (counts.get(f[key]) || 0) + 1);
+    if (assetFilters[key] && !counts.has(assetFilters[key])) counts.set(assetFilters[key], 0);
+    el.innerHTML = `<option value="">全部${label}</option>` + [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([value, n]) => `<option value="${esc(value)}">${esc(key === "category" ? CATEGORY_LABELS[value] || value : value)} (${n})</option>`).join("");
+    el.value = assetFilters[key];
+    syncAtlasSelect($("#asset-" + key));
+  }
+}
+let assetsLoadVersion = 0;
+async function loadAssets() {
+  const version = ++assetsLoadVersion, memoryQueryVersion = memoryVersion;
+  try {
+    const d = await api("/api/assets");
+    if (version !== assetsLoadVersion) return;
+    ASSETS = { ...d, files: Array.isArray(d.files) ? d.files : [] }; assetsError = "";
+    if (DATA && Number.isFinite(d.instructionGeneratedAt) && DATA.generatedAt !== d.instructionGeneratedAt) {
+      await loadTree();
+      if (version !== assetsLoadVersion) return;
+    }
+    renderAssetFacets();
+    if (view.type === "memories" && memoryQueryVersion === memoryVersion) await loadMemories();
+  } catch (e) { if (version !== assetsLoadVersion) return; assetsError = "文件库读取失败：" + e.message; }
+  renderSidebar();
+  if (view.type === "assets") renderAssetLibrary();
+  renderSnapshotStatus();
+}
+
+/* ---------- 记忆作用域：只使用服务端语义，不从存放路径推断 ---------- */
+function clearMemoryView() {
+  memoryVersion++; MEMORIES = null; memoryError = ""; memoryLoading = false;
+  $("#memory-status").textContent = "";
+  for (const key of Object.keys(memoryFilters)) $("#memory-" + key).onchange = null;
+  $("#memory-reset").onclick = null; $("#memory-refresh").onclick = null;
+  $("#memory-prev").onclick = null; $("#memory-next").onclick = null;
+  $("#memory-search").oninput = null; $("#memory-stage").onchange = null;
+  $("#memory-level").onchange = null;
+  $('#memory-by-directory').onclick = null; $('#memory-by-scope').onclick = null;
+  $('#memory-recursive').onchange = null;
+  $("#memory-page-status").textContent = ""; memoryPage = 0;
+}
+function memoryLevel(semantics) {
+  return Object.prototype.hasOwnProperty.call(MEMORY_LEVELS, semantics?.level) ? semantics.level : "unknown";
+}
+function memoryStage(semantics) {
+  const stage = semantics?.pipeline?.stage;
+  return Object.prototype.hasOwnProperty.call(MEMORY_STAGES, stage) ? stage : "unknown";
+}
+function memoryShortPath(path) { return String(path || "").replace(/^\/(?:Users|home)\/[^/]+\//, "~/"); }
+function memoryMetadataMatches(f, terms) {
+  const s = f.semantics || {}, info = f.memoryInfo || {};
+  const related = Array.isArray(info.relatedProjects) ? info.relatedProjects : [];
+  // Explicit metadata allowlist: never include source bodies, snippets or arbitrary payload fields.
+  const text = [f.name, f.path, memoryShortPath(f.path), f.platform, f.profile, f.project, info.title,
+    s.label, MEMORY_LEVELS[memoryLevel(s)], s.reader, s.loading?.mode, s.loading?.label,
+    memoryStage(s), MEMORY_STAGES[memoryStage(s)], ...(Array.isArray(s.appliesTo) ? s.appliesTo : []),
+    ...related.flatMap(p => [p?.name, p?.path, p?.basis, p?.evidence?.path])]
+    .filter(v => typeof v === "string").join("\n").toLowerCase();
+  return terms.every(term => text.includes(term));
+}
+async function loadMemories() {
+  if (view.type !== "memories") return;
+  const version = ++memoryVersion;
+  memoryLoading = true; memoryError = ""; MEMORIES = null;
+  renderMemoryScope();
+  try {
+    const d = await api("/api/memories?" + new URLSearchParams(memoryFilters));
+    if (version !== memoryVersion || view.type !== "memories") return;
+    if (d?.schemaVersion !== 1 || !Array.isArray(d.files) || !d.counts ||
+        !Array.isArray(d.projects) || !Array.isArray(d.platforms) || !Array.isArray(d.profiles)) throw new Error("响应格式未知，请刷新或核对服务版本");
+    if (!Number.isInteger(d.counts.total) || d.counts.total < d.files.length || d.counts.matched !== d.files.length) throw new Error("响应数量不一致，请刷新核对");
+    const levels = Object.fromEntries(Object.keys(MEMORY_LEVELS).map(level => [level, 0]));
+    for (const file of d.files) levels[memoryLevel(file.semantics)]++;
+    if (!d.counts.levels || Object.keys(levels).some(level => (d.counts.levels[level] ?? 0) !== levels[level]) ||
+        Object.keys(d.counts.levels).some(level => !Object.prototype.hasOwnProperty.call(levels, level))) throw new Error("分组数量不一致，请刷新核对");
+    MEMORIES = d;
+  } catch (e) {
+    if (version !== memoryVersion || view.type !== "memories") return;
+    memoryError = "记忆作用域暂不可用：" + e.message;
+  } finally {
+    if (version === memoryVersion && view.type === "memories") { memoryLoading = false; renderMemoryScope(); renderSidebar(); }
+  }
+}
+function renderMemoryFilters() {
+  const directoryMode = view.mode === 'directory';
+  $('#memory-by-directory').setAttribute('aria-pressed', String(directoryMode));
+  $('#memory-by-scope').setAttribute('aria-pressed', String(!directoryMode));
+  $('#memory-by-directory').onclick = () => navigateMemoryDirectory(view.directory || '');
+  $('#memory-by-scope').onclick = () => setView({type:'memories', mode:'scope'});
+  $('#memory-directory-controls').hidden = !directoryMode;
+  $('#memory-recursive').checked = memoryRecursive;
+  $('#memory-recursive').onchange = e => { memoryRecursive = e.target.checked; memoryPage = 0; renderMemoryScope(); };
+  $('#memory-refresh').textContent = directoryMode ? '刷新目录' : '刷新作用域';
+  $('#memory-hint').textContent = directoryMode ? '按真实存放目录浏览，只显示含记忆的目录；计数基于当前筛选。目录不代表作用域，不移动文件；搜索仅查本地元数据。' : '项目按读取规则筛选；层级不代表继承或优先级。本地搜索只查标题、路径和关联项目，不检索全文、不发送云端查询。';
+  const labels = { project: "适用项目", platform: "平台", profile: " Profile" };
+  for (const key of Object.keys(memoryFilters)) {
+    const el = $("#memory-" + key);
+    // Keep existing choices during refresh; a current selection never disappears.
+    if (MEMORIES || !el.innerHTML) {
+      const values = key === "project" ? (MEMORIES?.projects || []).map(p => [p.path, p.name + " · " + p.path]) :
+        (MEMORIES?.[key + "s"] || []).map(value => [value, value]);
+      if (memoryFilters[key] && !values.some(([v]) => v === memoryFilters[key])) values.push([memoryFilters[key], memoryFilters[key]]);
+      el.innerHTML = `<option value="">全部${labels[key]}</option>` + values.map(([v, label]) => `<option value="${esc(v)}">${esc(label)}</option>`).join("");
+    }
+    el.value = memoryFilters[key];
+    el.onchange = e => { memoryFilters[key] = e.target.value; memoryPage = 0; return loadMemories(); };
+    syncAtlasSelect(el);
+  }
+  $("#memory-search").value = memoryLocal.query;
+  $("#memory-stage").value = memoryLocal.stage;
+  syncAtlasSelect($("#memory-stage"));
+  $("#memory-level").innerHTML = '<option value="">全部层级</option>' + Object.entries(MEMORY_LEVELS).map(([value,label]) => `<option value="${value}">${label}</option>`).join("");
+  $("#memory-level").value = memoryLocal.level;
+  syncAtlasSelect($("#memory-level"));
+  $("#memory-level").onchange = e => { memoryLocal.level = e.target.value; memoryPage = 0; renderMemoryScope(); };
+  $("#memory-search").oninput = e => { memoryLocal.query = e.target.value; memoryPage = 0; renderMemoryScope(); };
+  $("#memory-stage").onchange = e => { memoryLocal.stage = e.target.value; memoryPage = 0; renderMemoryScope(); };
+  $("#memory-reset").onclick = () => {
+    for (const key of Object.keys(memoryFilters)) memoryFilters[key] = "";
+    memoryLocal.query = ""; memoryLocal.stage = ""; memoryLocal.level = ""; memoryPage = 0; return loadMemories();
+  };
+  $("#memory-refresh").onclick = () => loadMemories();
+}
+function memorySemanticsHtml(semantics, compact = false) {
+  const s = semantics || {}, loading = s.loading || {}, basis = s.basis || {};
+  const projects = Array.isArray(s.appliesTo) ? s.appliesTo : [];
+  const applicable = s.allProjects === true ? "所选平台/Profile 内，不限项目（仍受读取条件约束）" :
+    projects.length ? projects.join("\n") : "未知（未确认适用项目；存放位置不是作用域）";
+  const field = (label, value) => `<dt>${label}</dt><dd>${esc(value || "未知")}</dd>`;
+  const sources = (Array.isArray(basis.sources) ? basis.sources : []).filter(Boolean).map(source => {
+    let url;
+    try { url = new URL(source.url); } catch (_) { /* Invalid or relative links remain plain text. */ }
+    return url && ["https:", "http:"].includes(url.protocol) && !url.username && !url.password
+      ? `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(source.title || source.url)}</a>`
+      : `${esc(source.title || "来源")}（链接不可用）`;
+  }).join(" · ");
+  const localSources = (Array.isArray(basis.localSources) ? basis.localSources : [])
+    .filter(source => source && typeof source.path === "string").map(source =>
+      [typeof source.label === "string" ? source.label : "本机来源", source.path,
+        Number.isInteger(source.line) && source.line > 0 ? "L" + source.line : "",
+        typeof source.sha256 === "string" ? "SHA-256 " + source.sha256 : ""].filter(Boolean).join(" · ")).join("\n");
+  const basisLabel = { documented_rule: "文档规则", local_declaration: "本机声明", path_inference: "路径推断", unknown: "未知" }[basis.kind] || "未知";
+  const mode = { automatic: "自动加载", on_demand: "按需读取", retrieval: "检索召回", manual: "手动读取", none: "不自动读取", unknown: "未知" }[loading.mode] || "未知";
+  const core = field("适用项目", applicable) + field("读取方", s.reader) + field("读取机制", loading.label || mode);
+  const detail = field("触发条件", loading.trigger) + field("读取部分", loading.portion) + field("继承 / 隔离", s.inheritance) +
+    (s.pipeline ? field("管线阶段", MEMORY_STAGES[memoryStage(s)]) : "") +
+    (s.role ? field("管线角色", s.role.label || s.role.id) : "") +
+    field("判断依据", basisLabel + (basis.detail ? " · " + basis.detail : "")) +
+    (localSources ? field("本机来源", localSources) : "") +
+    `<dt>规则来源</dt><dd>${sources || "未提供可核对来源"}</dd>` + field("实际观测", "未验证实际读取") +
+    (Array.isArray(s.notes) && s.notes.length ? field("注意", s.notes.join("\n")) : "");
+  return compact ? `<dl class="memory-facts">${core}</dl><details><summary>读取条件与依据 · ${esc(basisLabel)} · 未验证实际读取</summary><dl class="memory-facts">${detail}</dl></details>` :
+    `<dl class="memory-facts">${field("作用层级", memoryLevel(s) === "unknown" ? "未知" : s.label || MEMORY_LEVELS[memoryLevel(s)])}${core}${detail}</dl>`;
+}
+function memoryPreviewBlocked(f) {
+  return f.searchable === false || ["unavailable", "metadata_only"].includes(f.memoryInfo?.status);
+}
+function memoryEntryHtml(f, displayPath) {
+  const metadataOnly = memoryPreviewBlocked(f), unavailable = f.memoryInfo?.status === "unavailable";
+  const access = unavailable ? "源文件不可用" : metadataOnly ? "仅元数据 · 不预览或编辑" : f.editable === true ? "可预览" : "只读预览";
+  const title = typeof f.memoryInfo?.title === "string" ? f.memoryInfo.title.trim() : "";
+  const name = esc(title || f.name || f.path), shortPath = typeof displayPath === 'string' ? displayPath : memoryShortPath(f.path);
+  const mode = { automatic: "自动加载", on_demand: "按需读取", retrieval: "检索召回", manual: "手动读取", none: "不自动读取" }[f.semantics?.loading?.mode] || "读取未知";
+  return `<article class="memory-entry"><div class="memory-head">${metadataOnly ? `<b title="${name}">${name}</b>` : `<button class="asset-file" type="button" title="${name}" data-asset-open="${esc(f.path)}">${name}</button>`}${fileGuideButton(f.path)}<span class="asset-meta">${esc(f.platform || "未知平台")} · ${esc(f.profile || "未标注 Profile")} · ${mode} · ${MEMORY_STAGES[memoryStage(f.semantics)]} · ${access}</span></div>
+    <div class="memory-path" title="${esc(f.path)}">${esc(shortPath)}</div>
+    <details class="memory-details"><summary>详情</summary>
+      <dl class="memory-facts"><dt>存放位置</dt><dd>${esc(f.path)}${Number.isFinite(f.bytes) ? " · " + fmtB(f.bytes) : ""}</dd></dl>
+      ${metadataOnly ? `<p class="asset-hint">${esc(f.memoryInfo?.reason || f.reason || (unavailable ? "目录记录保留；源文件暂不可读，请重新扫描核对。" : "该记忆未纳入安全文本内容范围；不尝试读取或编辑。"))}</p>` : ""}
+      ${f.memoryInfo?.status === "partial" || f.memoryInfo?.truncated === true ? '<p class="asset-hint">元数据仅解析前缀，可能未覆盖完整内容。</p>' : ""}
+      ${memoryInfoHtml(f.memoryInfo)}${memorySemanticsHtml(f.semantics)}</details></article>`;
+}
+function memoryInfoHtml(info) {
+  const projects = (Array.isArray(info?.relatedProjects) ? info.relatedProjects : [])
+    .filter(p => p && (typeof p.path === "string" || typeof p.name === "string"));
+  if (!projects.length) return "";
+  return `<dl class="memory-facts"><dt>内容关联≠适用范围</dt><dd>${projects.map(p => {
+    const text = [p.name, p.path, p.basis].filter(v => typeof v === "string" && v);
+    const evidence = p.evidence;
+    if (typeof evidence?.path === "string") text.push("依据：" + evidence.path + (Number.isInteger(evidence.line) && evidence.line > 0 ? " L" + evidence.line : ""));
+    return esc(text.join(" · "));
+  }).join("\n")}</dd></dl>`;
+}
+function renderMemoryScope() {
+  if (view.type !== "memories") return;
+  renderMemoryFilters();
+  if (view.mode === 'directory') { renderMemoryDirectory(); return; }
+  $("#crumb-inner").textContent = "记忆作用域";
+
+  $("#memory-status").textContent = memoryLoading ? "正在读取作用域规则…" : memoryError || MEMORIES?.notice || "作用域未知，尚未读取规则。";
+  const groups = Object.entries(MEMORY_LEVELS).map(([level, label]) => ({level, label,
+    files: (MEMORIES?.files || []).filter(f => memoryLevel(f.semantics) === level)}));
+  const terms = memoryLocal.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  for (const group of groups) group.matched = group.files.filter(f =>
+    (!memoryLocal.level || group.level === memoryLocal.level) &&
+    (!memoryLocal.stage || memoryStage(f.semantics) === memoryLocal.stage) && memoryMetadataMatches(f, terms));
+  const ordered = groups.flatMap(g => g.matched), total = ordered.length;
+  const stats = [[total, total === MEMORIES?.counts.total ? "记忆总数" : "当前匹配记忆"]];
+  if (MEMORIES && MEMORIES.counts.matched !== total && MEMORIES.counts.matched !== MEMORIES.counts.total) stats.push([MEMORIES.counts.matched, "作用域筛选后"]);
+  if (MEMORIES && MEMORIES.counts.total !== total) stats.push([MEMORIES.counts.total, "记忆总数"]);
+  $("#stats").innerHTML = MEMORIES ? stats.map(([n,label]) => `<div class="stat"><b>${esc(n)}</b>${label}</div>`).join("") : "";
+  if (MEMORIES) memoryPage = Math.min(memoryPage, Math.max(0, Math.ceil(total / MEMORY_PAGE_SIZE) - 1));
+  const start = memoryPage * MEMORY_PAGE_SIZE, rows = ordered.slice(start, start + MEMORY_PAGE_SIZE);
+  $("#memory-page-status").textContent = MEMORIES ? `显示 ${total ? start + 1 : 0}–${start + rows.length} / 匹配 ${total} · 每页最多 ${MEMORY_PAGE_SIZE} 份` : "";
+  $("#memory-prev").disabled = !MEMORIES || memoryPage === 0;
+  $("#memory-next").disabled = !MEMORIES || start + rows.length >= total;
+  $("#memory-prev").onclick = () => { if (MEMORIES && memoryPage > 0) { memoryPage--; renderMemoryScope(); } };
+  $("#memory-next").onclick = () => { if (MEMORIES && start + rows.length < total) { memoryPage++; renderMemoryScope(); } };
+  $("#content").innerHTML = MEMORIES ? groups.map(({level, label, files, matched}) => {
+    const shown = rows.filter(f => memoryLevel(f.semantics) === level);
+    if (!shown.length) return "";
+    return `<details class="root" open data-memory-level="${level}"><summary><span class="rname">${label}</span><span class="rcount" data-memory-count="${files.length}" data-memory-shown="${shown.length}" data-memory-matched="${matched.length}">本页 ${shown.length}${matched.length !== files.length ? " / 匹配 " + matched.length : ""} · 该层共 ${files.length} 份</span></summary>
+      ${shown.map(memoryEntryHtml).join("")}</details>`;
+  }).join("") || '<p class="asset-hint">没有匹配的记忆。可清除筛选，或刷新文件库后再查看。</p>' : '<p class="asset-hint">未取得作用域规则，不能由存放位置判断适用项目或读取方式。</p>';
+  bindRows();
+}
+
+/* ---------- 记忆存放目录：只消费后端拓扑，不推断生效关系 ---------- */
+function memoryDirectoryData() {
+  const tree = MEMORIES?.storageTree;
+  if (!tree || tree.schemaVersion !== 1) return null;
+  const terms = memoryLocal.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const files = MEMORIES.files.filter(f => (!memoryLocal.level || memoryLevel(f.semantics) === memoryLocal.level) &&
+    (!memoryLocal.stage || memoryStage(f.semantics) === memoryLocal.stage) && memoryMetadataMatches(f, terms));
+  const paths = new Set(files.map(f => f.path));
+  const counts = Object.fromEntries(Object.entries(tree.nodes).map(([path, node]) => [path, {
+    direct: node.directFiles.filter(p => paths.has(p)).length,
+    total: node.filePaths.filter(p => paths.has(p)).length
+  }]));
+  return {tree, files, counts, unplaced: files.filter(f => tree.unplacedFiles.includes(f.path))};
+}
+function navigateMemoryDirectory(path) {
+  if (path && !MEMORIES?.storageTree?.nodes[path] && !(path === '!unplaced' && MEMORIES?.storageTree?.unplacedFiles.length)) return false;
+  for (const ancestor of MEMORIES?.storageTree?.nodes[path]?.ancestors || []) memoryExpanded.add(ancestor);
+  setView({type:'memories', mode:'directory', directory:path});
+  return true;
+}
+function memoryDirectorySidebarHtml() {
+  if (view.type !== 'memories' || view.mode !== 'directory') return '';
+  const data = memoryDirectoryData();
+  if (!data) return '<div class="sec">记忆存放目录</div>';
+  const {tree, counts} = data;
+  const nodeHtml = path => {
+    const node = tree.nodes[path], count = counts[path];
+    if (!count.total) return '';
+    const open = memoryExpanded.has(path), label = node.parent ? node.name : node.displayPath;
+    return `<div class="nav-item ${view.directory === path ? 'active' : ''}" title="${esc(node.displayPath)}">
+      ${node.children.length ? `<button class="memory-tree-caret" type="button" data-memory-toggle="${esc(path)}" aria-label="展开或收起 ${esc(label)}" aria-expanded="${open}">${open ? '▼' : '▶'}</button>` : '<span class="nav-caret"></span>'}
+      <button class="nav-name memory-tree-name" type="button" data-memory-dir="${esc(path)}">${esc(label)}</button><span class="nav-count" title="含子目录的匹配记忆">${count.total}</span></div>
+      ${open ? `<div class="nav-kids open">${node.children.map(nodeHtml).join('')}</div>` : ''}`;
+  };
+  return '<div class="sec">记忆存放目录</div>' + tree.roots.map(nodeHtml).join('') +
+    (data.unplaced.length ? `<button class="nav-item memory-tree-name" type="button" data-memory-dir="!unplaced">路径无法归类 · ${data.unplaced.length}</button>` : '');
+}
+function renderMemoryDirectory() {
+  const data = memoryDirectoryData(), selected = view.directory || '';
+  const crumb = (path, label) => `<button class="memory-breadcrumb" type="button" data-memory-dir="${esc(path)}">${esc(label)}</button>`;
+  $('#crumb-inner').innerHTML = crumb('', '记忆目录');
+  $('#memory-prev').disabled = true; $('#memory-next').disabled = true;
+  $('#memory-prev').onclick = null; $('#memory-next').onclick = null;
+  $('#memory-page-status').textContent = '';
+  $('#stats').innerHTML = '';
+  $('#memory-status').textContent = memoryLoading ? '正在读取记忆目录…' : memoryError || '';
+  if (!data) {
+    $('#content').innerHTML = `<p class="asset-hint">${memoryLoading ? '正在加载…' : memoryError ? esc(memoryError) : '当前服务未提供目录结构，请刷新或重启新版服务。'}</p>`;
+    bindRows(); renderSidebar(); return;
+  }
+  const {tree, files, counts, unplaced} = data, node = tree.nodes[selected];
+  if (selected && !node && selected !== '!unplaced') {
+    $('#crumb-inner').innerHTML += ' / ' + esc(memoryShortPath(selected));
+    $('#content').innerHTML = '<p class="asset-hint">该目录不在当前记忆清单中，可能被筛选排除或已经移除。清除筛选或返回记忆目录；不会改为展示别的目录。</p>';
+    bindRows(); renderSidebar(); return;
+  }
+  if (node) $('#crumb-inner').innerHTML += node.ancestors.map(path => ' / ' + crumb(path, tree.nodes[path].parent ? tree.nodes[path].name : tree.nodes[path].displayPath)).join('');
+  if (selected === '!unplaced') $('#crumb-inner').innerHTML += ' / 路径无法归类';
+  const childPaths = (node ? node.children : selected ? [] : tree.roots).filter(path => counts[path].total > 0);
+  const direct = node ? counts[selected].direct : selected ? unplaced.length : files.length;
+  const subtree = node ? counts[selected].total : selected ? unplaced.length : files.length;
+  const stats = node ? [[direct, '本层记忆'], ...(subtree !== direct ? [[subtree, '含子目录']] : [])] : [[subtree, '匹配记忆']];
+  if (childPaths.length) stats.push([childPaths.length, selected ? '直接子目录' : '记忆根目录']);
+  $('#stats').innerHTML = stats.map(([count,label]) => `<div class="stat"><b>${count}</b>${label}</div>`).join('');
+  const folder = (path, label, count) => `<button class="memory-folder" type="button" data-memory-dir="${esc(path)}"><span aria-hidden="true">▸</span><span class="memory-folder-name">${esc(label)}</span><span class="memory-folder-count">${count.direct === count.total ? count.total + ' 份记忆' : '本层 ' + count.direct + ' · 含子目录 ' + count.total}</span></button>`;
+  let html = childPaths.length ? `<div class="memory-dir-heading">${node ? '子目录' : '存放位置'}</div><div class="root">${childPaths.map(path => folder(path, node ? tree.nodes[path].name : tree.nodes[path].displayPath, counts[path])).join('')}</div>` : '';
+  if (!selected) {
+    if (unplaced.length) html += '<div class="root">' + folder('!unplaced','路径无法归类',{direct:unplaced.length,total:unplaced.length}) + '</div>';
+    $('#memory-page-status').textContent = `目录总览 · ${childPaths.length} 个根目录`;
+    $('#content').innerHTML = html || '<p class="asset-hint">没有匹配的记忆目录，可清除筛选后重试。</p>';
+    bindRows(); renderSidebar(); return;
+  }
+  const included = new Set(node ? (memoryRecursive ? node.filePaths : node.directFiles) : tree.unplacedFiles);
+  const matched = files.filter(f => included.has(f.path)).sort((a,b) => a.path.localeCompare(b.path));
+  memoryPage = Math.min(memoryPage, Math.max(0, Math.ceil(matched.length / MEMORY_PAGE_SIZE) - 1));
+  const start = memoryPage * MEMORY_PAGE_SIZE, rows = matched.slice(start, start + MEMORY_PAGE_SIZE);
+  $('#memory-page-status').textContent = `显示 ${matched.length ? start + 1 : 0}–${start + rows.length} / 匹配 ${matched.length} · ${memoryRecursive ? '含子目录文件' : '本层文件'} · 每页最多 ${MEMORY_PAGE_SIZE} 份`;
+  $('#memory-prev').disabled = memoryPage === 0; $('#memory-next').disabled = start + rows.length >= matched.length;
+  $('#memory-prev').onclick = () => { if (memoryPage > 0) { memoryPage--; renderMemoryScope(); } };
+  $('#memory-next').onclick = () => { if (start + rows.length < matched.length) { memoryPage++; renderMemoryScope(); } };
+  html += `<div class="memory-dir-heading">${memoryRecursive ? '此目录及子目录的记忆' : '本层记忆'} · ${matched.length}</div>`;
+  html += rows.length ? '<div class="root">' + rows.map(f => memoryEntryHtml(f, node ? f.path.slice(selected.length + (selected.endsWith('/') ? 0 : 1)) : undefined)).join('') + '</div>' :
+    `<p class="asset-hint">${subtree && !memoryRecursive ? '本层没有匹配的记忆。进入上方子目录，或勾选「包含子目录文件」。' : '此目录下没有符合当前筛选的记忆。'}</p>`;
+  $('#content').innerHTML = html;
+  bindRows(); renderSidebar();
+}
+
+/* ---------- 全局检索：关键词本地防抖；云端只在提交时请求 ---------- */
+let searchVersion = 0, searchTimer = null, searchController = null;
+function invalidateAssetSearch() {
+  searchVersion++;
+  clearTimeout(searchTimer); searchTimer = null;
+  if (searchController) searchController.abort();
+  searchController = null; searchState.loading = false;
+}
+function searchChanged(submit = false) {
+  invalidateAssetSearch();
+  searchState.q = $("#search").value.trim();
+  searchState.mode = $("#search-mode").value || "keyword";
+  syncAtlasSelect($("#search-mode"));
+  searchState.results = null; searchState.total = null; searchState.error = ""; searchState.warning = "";
+  assetPage = 0;
+  if (view.type !== "assets") setView({ type: "assets" });
+  else renderContent();
+  if (!searchState.q) return;
+  if (submit) return runAssetSearch();
+  if (searchState.mode === "keyword") {
+    searchState.loading = true; renderAssetLibrary();
+    searchTimer = setTimeout(() => runAssetSearch(), 280);
+  }
+}
+async function runAssetSearch() {
+  invalidateAssetSearch();
+  if (view.type !== "assets" || !searchState.q) return;
+  const version = searchVersion;
+  searchController = new AbortController();
+  searchState.loading = true; searchState.error = ""; searchState.warning = "";
+  renderAssetLibrary();
+  const params = new URLSearchParams({ q: searchState.q, mode: searchState.mode, ...assetFilters, limit: "50" });
+  try {
+    const d = await api("/api/search?" + params, { signal: searchController.signal });
+    if (version !== searchVersion || view.type !== "assets") return;
+    const metadata = new Map((ASSETS?.files || []).map(f => [f.path, f]));
+    searchState.results = Array.isArray(d.results) ? d.results.map(r => ({ ...metadata.get(r.path), ...r })) : [];
+    searchState.total = Number.isFinite(d.total) ? d.total : null;
+    searchState.warning = (d.warning || "")
+      .replace("Vector search unavailable; showing keyword results.", "向量检索暂不可用，当前显示关键词结果。")
+      .replace("Embedding provider is not configured.", "请先在检索设置中配置云端 embedding。")
+      .replace("No vectors are available for these settings; build embeddings first.", "当前模型尚无向量，请先生成向量。");
+  } catch (e) {
+    if (version !== searchVersion || view.type !== "assets") return;
+    searchState.error = "检索失败：" + e.message;
+  } finally {
+    if (version === searchVersion && view.type === "assets") {
+      searchState.loading = false; searchController = null; renderAssetLibrary();
+    }
+  }
+}
+$("#search").addEventListener("input", () => searchChanged());
+$("#search-mode").addEventListener("change", () => searchChanged());
+$("#search-form").addEventListener("submit", e => { e.preventDefault(); searchChanged(true); });
+for (const key of Object.keys(assetFilters)) $("#asset-" + key).addEventListener("change", e => {
+  assetFilters[key] = e.target.value; searchChanged();
+});
+$("#asset-reset").addEventListener("click", () => {
+  for (const key of Object.keys(assetFilters)) assetFilters[key] = "";
+  renderAssetFacets(); searchChanged();
+});
+
+/* ---------- 检索设置与后台索引任务 ---------- */
+const DEFAULT_CLOUD_CATEGORIES = ["instruction", "memory", "skill", "reference", "command", "hook"];
+let searchSettings = null, settingsDirty = false, settingsVersion = 0;
+let assetStatus = null, statusTimer = null, statusVersion = 0, assetJobStarting = false, assetStatusError = "";
+function publicSearchSettings(d) {
+  return { baseUrl: d.baseUrl || "", model: d.model || "", dimensions: d.dimensions ?? null,
+    apiKeyConfigured: d.apiKeyConfigured === true, categories: Array.isArray(d.categories) ? d.categories : [...DEFAULT_CLOUD_CATEGORIES], batchSize: d.batchSize ?? 16 };
+}
+function paintSearchSettings(d) {
+  searchSettings = publicSearchSettings(d);
+  $("#settings-base").value = searchSettings.baseUrl;
+  $("#settings-model").value = searchSettings.model;
+  $("#settings-dimensions").value = searchSettings.dimensions ?? "";
+  $("#settings-batch").value = searchSettings.batchSize;
+  $("#settings-key").value = ""; $("#settings-clear-key").checked = false;
+  $("#settings-key-state").textContent = searchSettings.apiKeyConfigured ? "已配置密钥（不回显）" : "尚未配置密钥";
+  $("#settings-categories").innerHTML = '<legend>允许发送到 embedding 服务的文件类别</legend>' + Object.entries(CATEGORY_LABELS).map(([key, label]) => `<label><input type="checkbox" value="${key}" ${searchSettings.categories.includes(key) ? "checked" : ""}> ${esc(label)}</label>`).join("");
+  settingsDirty = false;
+}
+function settingsMessage(text, error = false) {
+  $("#settings-message").textContent = text;
+  $("#settings-message").style.color = error ? "var(--danger)" : "var(--muted)";
+}
+async function openSearchSettings() {
+  const version = ++settingsVersion;
+  $("#settings-key").value = "";
+  $("#search-settings").showModal(); $("#settings-save").disabled = true;
+  settingsMessage("正在读取配置…");
+  try {
+    const d = await api("/api/settings");
+    if (version !== settingsVersion || !$("#search-settings").open) return;
+    paintSearchSettings(d); $("#settings-save").disabled = false;
+    settingsMessage(d.baseUrl && d.model ? "保存后仍需手动生成向量；不会自动上传。" : "待配置：填写服务地址和模型名。关键词检索无需云端配置。");
+  } catch (e) { if (version === settingsVersion) settingsMessage("配置读取失败：" + e.message, true); }
+  renderAssetStatus();
+}
+function settingsPayload() {
+  const baseUrl = $("#settings-base").value.trim().replace(/\/+$/, ""), model = $("#settings-model").value.trim();
+  if (baseUrl) { const u = new URL(baseUrl); if (!["http:", "https:"].includes(u.protocol) || u.username || u.password || u.search || u.hash) throw new Error("服务地址须为 http(s) Base URL，不得包含密钥、查询参数或用户信息"); }
+  const dimensionText = String($("#settings-dimensions").value).trim();
+  const batchText = String($("#settings-batch").value).trim();
+  if (dimensionText && (!/^[1-9]\d*$/.test(dimensionText) || !Number.isSafeInteger(Number(dimensionText)))) throw new Error("维度须为正整数，或留空");
+  if (!/^[1-9]\d*$/.test(batchText) || Number(batchText) > 128) throw new Error("批大小须为 1–128 的整数");
+  const p = { baseUrl, model, dimensions: dimensionText ? Number(dimensionText) : null, batchSize: Number(batchText),
+    categories: [...$("#settings-categories").querySelectorAll("input:checked")].map(el => el.value) };
+  const key = $("#settings-key").value;
+  if ($("#settings-clear-key").checked && key) throw new Error("清除密钥与输入新密钥不能同时选择");
+  if (key) p.apiKey = key;
+  if ($("#settings-clear-key").checked) p.clearApiKey = true;
+  return p;
+}
+async function saveSearchSettings(e) {
+  e.preventDefault();
+  if ($("#settings-save").disabled) return;
+  let payload;
+  try { payload = settingsPayload(); } catch (err) { settingsMessage(err.message, true); return; }
+  const version = settingsVersion;
+  $("#settings-save").disabled = true; settingsMessage("正在保存并核验配置…");
+  try {
+    await api("/api/settings", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+    $("#settings-key").value = "";
+    const verified = publicSearchSettings(await api("/api/settings"));
+    if (version !== settingsVersion) return;
+    const same = ["baseUrl", "model", "dimensions", "batchSize"].every(k => verified[k] === payload[k]) &&
+      JSON.stringify([...verified.categories].sort()) === JSON.stringify([...payload.categories].sort()) &&
+      (!payload.apiKey || verified.apiKeyConfigured) && (!payload.clearApiKey || !verified.apiKeyConfigured);
+    if (!same) { settingsMessage("保存响应与回读配置不一致，请重新打开设置核对；未上传文件内容。", true); return; }
+    paintSearchSettings(verified);
+    settingsMessage("配置已保存并核验；未上传文件内容。" + (!verified.baseUrl || !verified.model ? "待配置服务地址 / 模型后才可生成向量。" : "云端连通性和模型尚未验证，生成向量时检查。"));
+  } catch (err) { if (version === settingsVersion) settingsMessage("保存或核验失败：" + err.message + "。未触发向量生成。", true); }
+  finally { $("#settings-key").value = ""; if (version === settingsVersion) $("#settings-save").disabled = false; }
+}
+function renderAssetStatus(error = assetStatusError) {
+  const d = assetStatus || {}, j = d.job || {}, i = d.index || {};
+  const count = n => Number.isFinite(n) ? n : "未知";
+  const stage = { idle: "空闲", queued: "排队", discover: "扫描", scanning: "扫描", keyword: "本地索引", indexing: "本地索引", embedding: "生成向量", done: "任务结束", completed: "任务结束", error: "失败" }[j.stage] || j.stage || "处理";
+  let text = error || (assetJobStarting ? "请求处理中；尚未确认任务状态。" :
+    `${j.running ? "进行中 · " + stage : j.running === false ? "当前无运行任务" : "任务状态未知，等待读取"} · 本地 ${count(i.files)} 文件 / ${count(i.chunks)} 段 / ${count(i.vectors)} 向量`);
+  if (d.available === false) text += " · 本地检索暂不可用";
+  if (j.progress != null) text += " · 进度 " + (typeof j.progress === "object" ? JSON.stringify(j.progress) : j.progress);
+  if (i.truncatedFiles) text += ` · ${count(i.truncatedFiles)} 个文件仅索引部分内容`;
+  if (i.skippedFiles) text += ` · ${count(i.skippedFiles)} 个仅展示文件信息`;
+  if (i.errors) text += ` · 索引错误 ${Array.isArray(i.errors) ? i.errors.length : typeof i.errors === "number" ? i.errors : JSON.stringify(i.errors)}`;
+  if (j.error) text += " · 任务错误：" + (typeof j.error === "string" ? j.error : JSON.stringify(j.error));
+  $("#index-status").textContent = text; $("#settings-index-status").textContent = text;
+  for (const id of ["#btn-rescan", "#asset-rescan", "#settings-local", "#settings-vectors"]) $(id).disabled = assetJobStarting || !!j.running;
+  renderSnapshotStatus();
+}
+function refreshSearchAfterCatalog(queryVersion) {
+  if (queryVersion !== searchVersion || view.type !== "assets" || !searchState.q) return;
+  if (searchState.mode === "keyword") searchChanged();
+  else {
+    invalidateAssetSearch(); searchState.results = null; searchState.total = null; searchState.error = "";
+    searchState.warning = "索引状态已变化，请手动重新提交云端查询。";
+    renderAssetLibrary();
+  }
+}
+async function refreshAssetStatus() {
+  clearTimeout(statusTimer); statusTimer = null;
+  const version = ++statusVersion, wasRunning = !!assetStatus?.job?.running;
+  try {
+    const d = await api("/api/assets/status");
+    if (version !== statusVersion) return;
+    assetStatus = d; assetStatusError = ""; renderAssetStatus();
+    if (d.job?.running) statusTimer = setTimeout(() => refreshAssetStatus(), 1200);
+    else if (wasRunning) {
+      const queryVersion = searchVersion;
+      await loadAssets();
+      if (version === statusVersion) refreshSearchAfterCatalog(queryVersion);
+      return true; // This completed task already caused a catalog read.
+    }
+  } catch (e) {
+    if (version === statusVersion) {
+      const retrying = assetStatus?.job?.running === true;
+      assetStatusError = "状态读取失败：" + e.message + (retrying
+        ? "。现有任务完成情况未知，稍后自动重试读取；不会重复提交任务。"
+        : "。重新打开设置可重试状态查询；不会自动重复提交任务。");
+      if (retrying) statusTimer = setTimeout(() => refreshAssetStatus(), 3000);
+      renderAssetStatus();
+    }
+  }
+}
+async function startAssetJob(kind, rescanPath = "/api/assets/rescan") {
+  if (assetJobStarting || assetStatus?.job?.running) return;
+  if (kind === "vector" && settingsDirty) { settingsMessage("请先保存配置，再确认生成向量。", true); return; }
+  const queryVersion = searchVersion;
+  assetJobStarting = true; assetStatusError = ""; renderAssetStatus();
+  try {
+    if (kind === "vector") {
+      const config = publicSearchSettings(await api("/api/settings"));
+      if (!config.baseUrl || !config.model) { settingsMessage("待配置：服务地址和模型名不能为空；未发送内容。", true); return; }
+      if (!config.categories.length) { settingsMessage("没有允许上传的文件类别；未发送内容。", true); return; }
+      if (!confirm(`确认向云端 embedding 服务发送文件片段？\n\n服务：${config.baseUrl}\n模型：${config.model}\n类别：${config.categories.map(c => CATEGORY_LABELS[c] || c).join("、")}\n本次最多 256 段；可能产生费用。会话、日志、配置等可能含敏感信息。\n向量结果保存在本机 SQLite。继续？`)) return;
+    }
+    const body = kind === "rescan" ? {} : kind === "vector" ? { embeddings: true, confirmCloud: true, maxChunks: 256 } : { embeddings: false };
+    const d = await api(kind === "rescan" ? rescanPath : "/api/search/index", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+    assetStatus = { ...(assetStatus || {}), job: d.job || d };
+    if (kind === "rescan" && await loadTree() === false) throw new Error('指令扫描已执行，但地图回读失败；请重新读取核对。');
+    settingsMessage("请求已接收，正在读取实际任务状态；不代表索引已完成。");
+    assetJobStarting = false;
+    const catalogRead = await refreshAssetStatus();
+    if (!assetStatus?.job?.running && !catalogRead) { await loadAssets(); refreshSearchAfterCatalog(queryVersion); }
+    if (kind === "rescan") notice("指令地图已重新扫描；文件库与本地索引状态见快照提示。不生成云向量。");
+  } catch (e) { assetStatusError = "任务请求失败：" + e.message; settingsMessage(assetStatusError, true); notice(assetStatusError); }
+  finally { assetJobStarting = false; renderAssetStatus(); }
+}
+$("#btn-settings").addEventListener("click", () => { openSearchSettings(); refreshAssetStatus(); });
+$("#settings-close").addEventListener("click", () => $("#search-settings").close());
+$("#search-settings").addEventListener("close", () => { settingsVersion++; $("#settings-key").value = ""; settingsDirty = false; });
+$("#settings-form").addEventListener("input", () => { settingsDirty = true; settingsMessage("有未保存的设置；生成向量前请先保存。不会自动上传。"); });
+$("#settings-form").addEventListener("submit", saveSearchSettings);
+$("#asset-rescan").addEventListener("click", () => startAssetJob("rescan"));
+$("#settings-local").addEventListener("click", () => startAssetJob("local"));
+$("#settings-vectors").addEventListener("click", () => startAssetJob("vector"));
+
+/* ---------- 面板宽度拖拽（记忆） ---------- */
+const vz = $("#v-resize"), vw = $("#viewer");
+const savedW = parseInt(localStorage.getItem("aa-viewer-w") || "0", 10);
+if (savedW >= 320 && savedW <= 1600) vw.style.width = savedW + "px";
+vz.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  document.body.classList.add("resizing");
+  const startX = e.clientX, startW = vw.getBoundingClientRect().width;
+  const move = (ev) => {
+    const w = Math.round(Math.min(Math.max(startW + (startX - ev.clientX), 320),
+                                  window.innerWidth - 380));
+    vw.style.width = w + "px";
+  };
+  const up = () => {
+    document.body.classList.remove("resizing");
+    localStorage.setItem("aa-viewer-w", vw.getBoundingClientRect().width);
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+});
+
+/* ---------- 生效提示词栈 ---------- */
+let effectiveResult = null;
+$("#v-effective").addEventListener("click", async () => {
+  if (current?.category !== "instruction" || viewerLoading || fileSaving) return;
+  const loaded = current, version = viewerVersion;
+  const dir = loaded.path.replace(/\/[^/]+$/, "") || "/";
+  try {
+    const d = await api("/api/effective?tool=Codex&dir=" + encodeURIComponent(dir));
+    if (current !== loaded || version !== viewerVersion) return;
+    effectiveResult = d;
+    $("#eff-path").textContent = d.dir;
+    $("#eff-meta").textContent = `Codex 推算路径 ${d.files.length} 个；用户级 → 项目根 → 当前目录。其他工具未混入。`;
+    $("#eff-body").innerHTML = AtlasLifecycle.effectiveHtml(d);
+    $("#eff-modal").classList.add("open");
+  } catch (e) { msg(e.message, true); }
+});
+$("#eff-close").addEventListener("click", () => $("#eff-modal").classList.remove("open"));
+$("#eff-modal").addEventListener("click", (e) => {
+  if (e.target === $("#eff-modal")) $("#eff-modal").classList.remove("open");
+});
+$("#eff-copy").addEventListener("click", async () => {
+  if (!effectiveResult) return;
+  const paths = effectiveResult.files.map(f => f.path).join("\n");
+  try { await navigator.clipboard.writeText("Codex 当前布局推算（非历史注入证明）\n" + paths); msg("已复制推算路径清单"); }
+  catch (e) { msg("复制失败: " + e.message, true); }
+});
+
+/* ---------- 文件翻译 ---------- */
+let trMode = false, translationVersion = 0;
+const trCache = {};   // path -> { lang, translated, source, meta }（本次会话内已翻译结果，点击「已翻译」标签直接回看）
+function showTrView(t) {
+  if (!current || !isFileEditable(current)) return;
+  if (secMode && viewerHasDrafts() && !confirm("查看译文会放弃未保存的组件修改，继续？")) return;
+  trMode = true;
+  resetSec();
+  showPanel("tr");
+  const v = $("#v-tr");
+  v.innerHTML = `
+    <div class="tr-main">
+      <div class="tr-label">译文 · ${esc(t.lang)} · ${esc(t.meta)}${t.fresh === false ? " · 缓存" : ""}</div>
+      ${t.errors && t.errors.length ? `<div class="tr-status err">${esc(t.errors.join("；"))}</div>` : ""}
+      <div class="tr-dst">${esc(t.translated)}</div>
+    </div>
+    <div class="tr-split" id="tr-split" title="拖动调节译文/原文宽度"></div>
+    <div class="tr-side">${esc(t.source)}</div>`;
+  $("#v-translate").textContent = "看原文";
+  $("#v-save").disabled = true;
+  bindTrSplit();
+}
+function bindTrSplit() {
+  const split = $("#tr-split");
+  if (!split) return;
+  const v = $("#v-tr");
+  const main = v.querySelector(".tr-main");
+  const saved = localStorage.getItem("aa-tr-split");
+  if (saved) main.style.flexBasis = saved;
+  split.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    split.classList.add("on");
+    const rect = v.getBoundingClientRect();
+    const move = (ev) => {
+      const pct = Math.min(85, Math.max(20, (ev.clientX - rect.left) / rect.width * 100));
+      main.style.flexBasis = pct + "%";
+    };
+    const up = () => {
+      split.classList.remove("on");
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+      if (main.style.flexBasis) localStorage.setItem("aa-tr-split", main.style.flexBasis);
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+  });
+}
+function resetTr() {
+  translationVersion++;
+  trMode = false;
+  const v = $("#v-tr");
+  if (v) { v.style.display = "none"; v.innerHTML = ""; }
+  $("#v-text").classList.remove("tr-hidden");
+  $("#v-translate").textContent = "翻译";
+  updateViewerAccess();
+}
+/* ---------- 组件（section）视图 ---------- */
+let secMode = false;
+function showPanel(which) {   // which: "raw" | "tr" | "sec"
+  $("#v-text").classList.toggle("tr-hidden", which !== "raw");
+  $("#v-tr").style.display = which === "tr" ? "flex" : "none";
+  $("#v-sec").style.display = which === "sec" ? "block" : "none";
+}
+function resetSec() {
+  secMode = false;
+  const v = $("#v-sec");
+  if (v) { v.style.display = "none"; v.innerHTML = ""; }
+}
+async function openSections() {
+  if (!current || viewerLoading || fileSaving) return;
+  if (secMode) {
+    if (viewerHasDrafts() && !confirm("放弃未保存的组件修改并返回原文？")) return;
+    resetSec(); showPanel("raw"); $("#v-sections").textContent = "组件"; updateViewerAccess(); return;
+  }
+  if ($("#v-text").value !== editorText(current.content)) { msg("请先保存原文修改，再打开组件视图。", true); return; }
+  const loaded = current, version = viewerVersion;
+  resetTr();
+  secMode = true;
+  const v = $("#v-sec");
+  showPanel("sec");
+  v.innerHTML = `<div class="tr-status" style="flex:1;padding:24px 10px;text-align:center;color:var(--muted)">解析中…</div>`;
+  $("#v-sections").textContent = "看原文";
+  $("#v-save").disabled = true;
+  try {
+    const d = await api("/api/sections?path=" + encodeURIComponent(loaded.path));
+    if (version !== viewerVersion || current !== loaded || !secMode) return;
+    if (d.sha256 && d.sha256 !== loaded.sha256) throw new Error("磁盘文件已变化，请点「重新读取」刷新校验值后再打开组件");
+    if (d.editable === false) current.editable = false;
+    renderSections(d.sections); updateViewerAccess();
+    msg(`${d.sectionCount} 个 section 组件 · 共 ${fmtB(d.totalChars)}`);
+  } catch (e) {
+    if (version === viewerVersion && current === loaded && secMode) {
+      v.innerHTML = `<div class="tr-status err">${esc(e.message)}</div>`;
+      msg(e.message, true);
+    }
+  }
+}
+function renderSections(sections) {
+  const v = $("#v-sec");
+  v.innerHTML = sections.map((s, i) => `
+    <details class="sec-item" data-i="${i}">
+      <summary>
+        <span class="sec-hl">${esc("h" + (s.level || 1))}</span>
+        <span class="sec-title">${esc(s.title)}</span>
+        <span class="sec-chars">${esc(s.chars)} 字符 · L${esc(s.start_line)}–${esc(s.end_line)}</span>
+      </summary>
+      <div class="sec-body">
+        <textarea data-sec-i="${i}" spellcheck="false" ${isFileEditable(current) ? "" : "readonly"}>${esc(s.text)}</textarea>
+        <div class="sec-actions">
+          <span class="vmsg" id="sec-msg-${i}"></span>
+          <button class="btn sec-save" data-sec-i="${i}"
+            data-section-id="${esc(s.id)}" data-start="${esc(s.start_line)}" data-end="${esc(s.end_line)}" ${isFileEditable(current) ? "" : "disabled"}>保存此组件</button>
+        </div>
+      </div>
+    </details>`).join("");
+  v.querySelectorAll(".sec-save").forEach(btn =>
+    btn.addEventListener("click", () => saveSection(btn)));
+}
+async function saveSection(btn) {
+  if (!isFileEditable(current) || viewerLoading || fileSaving) return;
+  if (!current.sha256) { msg("缺少文件校验值，请重新读取后再保存组件。", true); return; }
+  const loaded = current, version = viewerVersion;
+  const i = parseInt(btn.dataset.secI, 10);
+  const ta = $("#v-sec").querySelector(`textarea[data-sec-i="${i}"]`);
+  const msgEl = $("#sec-msg-" + i);
+  const say = (t, err) => { if (msgEl) { msgEl.textContent = t; msgEl.className = "vmsg" + (err ? " err" : ""); } else msg(t, err); };
+  if ([...$("#v-sec").querySelectorAll("textarea")].some(el => el !== ta && el.value !== el.defaultValue) && !confirm("刷新组件将放弃其他组件中未保存的修改，继续保存此组件？")) return;
+  fileSaving = true; updateViewerAccess();
+  btn.disabled = true; btn.textContent = "保存中…";
+  try {
+    const d = await api("/api/section/save", { method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ path: loaded.path, sectionId: btn.dataset.sectionId,
+        text: ta.value, baseVersion: loaded.version || loaded.sha256 }) });
+    const fresh = await api("/api/file?path=" + encodeURIComponent(loaded.path));
+    if (version !== viewerVersion || current !== loaded) return;
+    if (d.sha256 && fresh.sha256 !== d.sha256) throw new Error("保存后文件又被修改，请重新读取核对；当前组件修改已保留");
+    current = fresh; $("#v-text").value = fresh.content;
+    delete trCache[loaded.path];
+    $("#v-sec").innerHTML = '<p class="asset-hint">文件已回读，正在刷新组件行号；若失败请切回原文再打开组件。</p>';
+    const sd = await api("/api/sections?path=" + encodeURIComponent(loaded.path));
+    if (version !== viewerVersion || current !== fresh) return;
+    if (sd.sha256 && sd.sha256 !== fresh.sha256) {
+      $("#v-sec").innerHTML = "";
+      throw new Error("磁盘内容再次变化，请重新读取后继续编辑");
+    }
+    if (sd.editable === false) current.editable = false;
+    renderSections(sd.sections); refreshTrBadges();
+    const detail = $("#v-sec").querySelector(`details[data-i="${i}"]`);
+    if (detail) detail.open = true;
+    msg(`${d.changed ? "组件已保存" : "内容未变化"}，${sd.sectionCount} 个组件及文件校验值已刷新`);
+  } catch (e) { if (version === viewerVersion) { say("保存或回读失败: " + e.message, true); msg("保存或回读失败: " + e.message, true); } }
+  finally { fileSaving = false; btn.textContent = "保存此组件"; updateViewerAccess(); }
+}
+$("#v-sections").addEventListener("click", openSections);
+function refreshTrBadges() {
+  document.querySelectorAll(".tr-badge").forEach(b => {
+    const has = !!trCache[b.dataset.trPath];
+    b.style.display = has ? "" : "none";
+    b.title = has ? `已翻译为 ${trCache[b.dataset.trPath].lang}，点击查看译文` : "";
+  });
+}
+$("#v-translate").addEventListener("click", async () => {
+  if (!isFileEditable(current) || viewerLoading || fileSaving) return;
+  if (trMode) { resetTr(); showPanel("raw"); return; }
+  const cached = trCache[current.path];
+  if (cached) { showTrView(cached); return; }   // 已翻译过：直接回看，不再请求
+  if (viewerHasDrafts()) { msg("请先保存修改，再按磁盘版本翻译。", true); return; }
+  if (!confirm("翻译会将当前文件的已保存内容发送到翻译服务（独立于 embedding 检索设置），可能产生费用。继续？")) return;
+  const loaded = current, version = viewerVersion, requestVersion = ++translationVersion;
+  const lang = $("#v-tr-lang").value;
+  resetSec();
+  trMode = true;
+  showPanel("tr");
+  const v = $("#v-tr");
+  v.style.display = "flex";
+  v.innerHTML = `<div class="tr-status">翻译中…（${esc(lang)}，长文件需等待数十秒）</div>`;
+  $("#v-translate").textContent = "看原文";
+  $("#v-save").disabled = true;
+  try {
+    const d = await api("/api/translate", { method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ path: loaded.path, lang }) });
+    trCache[loaded.path] = { lang: d.lang, translated: d.translated, source: d.source,
+      meta: `${d.provider}/${d.model} · ${d.chunks} 段`, fresh: d.fresh > 0, errors: d.errors };
+    refreshTrBadges();
+    if (version !== viewerVersion || current !== loaded || requestVersion !== translationVersion || !trMode) return;
+    showTrView(trCache[loaded.path]);
+    msg(`翻译完成${d.errors?.length ? `（${d.errors.length} 段失败，保留原文）` : ""}`);
+  } catch (e) {
+    if (version === viewerVersion && current === loaded && requestVersion === translationVersion && trMode) {
+      v.innerHTML = `<div class="tr-status err">${esc(e.message)}</div>`;
+      msg(e.message, true);
+    }
+  }
+});
+
+/* ---------- 重复组浮层：这个文件和谁重复 ---------- */
+function dupPartners(path) {
+  const f = DATA.files.find(x => x.path === path);
+  if (!f) return [];
+  return DATA.files.filter(x => x.sha === f.sha && x.path !== path);
+}
+function showDupPopover(path, cx, cy) {
+  let pop = $("#dup-pop");
+  if (!pop) {
+    pop = document.createElement("div");
+    pop.id = "dup-pop";
+    document.body.appendChild(pop);
+  }
+  const partners = dupPartners(path);
+  const short = (p) => String(p).replace(/^\/Users\/[^/]+\//, "~/");
+  pop.innerHTML = `
+    <div class="dp-head">与以下 ${partners.length} 个文件内容完全相同（SHA1 一致）：</div>
+    ${partners.map(p => `
+      <div class="dp-row" data-open="${esc(p.path)}">${esc(short(p.path))}</div>`).join("")}
+    ${partners.length ? `<div class="dp-foot">点击路径直接打开对比 · 或去侧边栏「重复副本」批量同步</div>`
+                      : `<div class="dp-foot">当前没有同内容副本（可能编辑过未重新扫描）</div>`}`;
+  pop.classList.add("open");
+  const w = Math.min(560, window.innerWidth - 40);
+  pop.style.left = Math.max(10, Math.min(cx - w / 2, window.innerWidth - w - 10)) + "px";
+  const above = cy > window.innerHeight / 2;
+  pop.style.top = above ? Math.max(10, cy - pop.offsetHeight - 14) + "px" : (cy + 14) + "px";
+  pop.querySelectorAll(".dp-row").forEach(r =>
+    r.addEventListener("click", () => { pop.classList.remove("open"); openFile(r.dataset.open); }));
+}
+
+/* ---------- 观测证据：推算与提及，不宣称真实读取 ---------- */
+let evidenceVersion = 0;
+async function showUsageEvidence(path, cx = 40, cy = 80) {
+  const version = ++evidenceVersion;
+  let pop = $("#reads-pop");
+  if (!pop) {
+    pop = document.createElement("div");
+    pop.id = "reads-pop";
+    document.body.appendChild(pop);
+  }
+  pop.innerHTML = `<div style="padding:14px;color:var(--muted);font-size:12px">扫描会话日志中…</div>`;
+  pop.classList.add("open");
+  const w = Math.min(720, window.innerWidth - 40);
+  pop.style.left = Math.max(10, Math.min(cx - w / 2, window.innerWidth - w - 10)) + "px";
+  pop.style.top = (cy + 14) + "px";
+  try {
+    const d = await api("/api/usage/evidence?path=" + encodeURIComponent(path) + "&days=" + (USAGE ? USAGE.days : 30));
+    if (version !== evidenceVersion) return;
+    pop.innerHTML = AtlasLifecycle.evidenceHtml(d);
+  } catch (e) {
+    if (version !== evidenceVersion) return;
+    pop.innerHTML = `<div style="padding:14px;color:var(--danger);font-size:12px">${esc(e.message)}</div>`;
+  }
+  pop.style.top = Math.max(10, Math.min(cy + 14, window.innerHeight - pop.offsetHeight - 10)) + "px";
+}
+
+/* ---------- 返回 ---------- */
+$("#btn-back").addEventListener("click", goBack);
+document.addEventListener("keydown", (e) => {
+  if ($("#file-guide-dialog").open || $("#search-settings").open) return;
+  if ((e.metaKey || e.ctrlKey) && e.key === "[") { e.preventDefault(); if (hist.length) goBack(); }
+});
+
+/* ---------- 快速 tooltip（0.8s 延迟，替代浏览器原生 title 慢气泡）---------- */
+const tipEl = document.createElement("div");
+tipEl.id = "tip";
+document.body.appendChild(tipEl);
+let tipTimer = null;
+document.addEventListener("mouseover", (e) => {
+  const b = e.target.closest(".use-badge, .tr-badge, .wt-badge, .dup-link");
+  if (tipTimer) { clearTimeout(tipTimer); tipTimer = null; }
+  if (!b) { tipEl.style.display = "none"; return; }
+  const text = b.getAttribute("title");
+  if (!text) return;
+  b.removeAttribute("title");     // 防止原生气泡和自定义浮层同时出现
+  b.dataset.tip = text;
+  tipTimer = setTimeout(() => {
+    tipEl.textContent = text;
+    tipEl.style.display = "block";
+    const r = b.getBoundingClientRect();
+    tipEl.style.left = Math.max(8, Math.min(r.left, window.innerWidth - tipEl.offsetWidth - 12)) + "px";
+    tipEl.style.top = (r.bottom + 6 > window.innerHeight - tipEl.offsetHeight)
+      ? (r.top - tipEl.offsetHeight - 6) + "px" : (r.bottom + 6) + "px";
+  }, 600);
+});
+document.addEventListener("mouseout", (e) => {
+  const b = e.target.closest(".use-badge, .tr-badge, .wt-badge, .dup-link");
+  if (tipTimer) { clearTimeout(tipTimer); tipTimer = null; }
+  tipEl.style.display = "none";
+  // 还回 title（数据不丢，下次悬停重新计时）
+  if (b && b.dataset && b.dataset.tip && !b.getAttribute("title")) b.setAttribute("title", b.dataset.tip);
+});
+
+/* ---------- 重新扫描 ---------- */
+$("#btn-rescan").addEventListener("click", () => startAssetJob("rescan", "/api/rescan"));
+function notice(t) { $("#notice").style.display = "block"; $("#notice").textContent = t;
+  setTimeout(() => { $("#notice").style.display = "none"; }, 6000); }
+
+/* ---------- 启动 ---------- */
+let USAGE = null, RETIREMENT = null, usagePromise = null, usageError = "", usageVersion = 0;
+let retirementBucket = "review", retirementBusy = false;
+function loadUsage() {
+  if (retirementBusy) return Promise.resolve(false);
+  if (usagePromise) return usagePromise;
+  const version = ++usageVersion;
+  usagePromise = (async () => {
+    try {
+      const [u, queue] = await Promise.all([api("/api/usage?days=30"), api("/api/retirement?days=30&staleDays=90")]);
+      if (version !== usageVersion) return false;
+      USAGE = {...u, rows:u.files, files:Object.fromEntries(u.files.map(r => [r.path, r]))};
+      RETIREMENT = queue; usageError = "";
+      return true;
+    } catch (e) { if (version === usageVersion) usageError = "观测暂不可用：" + e.message; return false; }
+    finally { if (version === usageVersion) usagePromise = null; }
+  })();
+  return usagePromise;
+}
+let treeLoadVersion = 0, treeError = "";
+async function loadTree() {
+  const version = ++treeLoadVersion;
+  try {
+    const data = await api("/api/tree");
+    if (version !== treeLoadVersion) return;
+    DATA = data; treeError = "";
+  } catch (e) {
+    if (version !== treeLoadVersion) return;
+    treeError = "指令地图读取失败：" + e.message;
+    renderSnapshotStatus();
+    if (!["assets", "memories"].includes(view.type)) $("#content").innerHTML = `<div class="root"><div class="proj-body" style="padding:16px;color:var(--danger)">${esc(e.message)}</div></div>`;
+    notice("指令地图读取失败：" + e.message + "；文件库与记忆作用域可独立读取。");
+    return false;
+  }
+  $("#hostinfo").textContent = DATA.host + " · 扫描于 " + fmtT(DATA.generatedAt);
+  loadUsage().then(ok => { if (!ok) notice("曝光统计暂不可用（重启 serve.py 后刷新即可）"); renderContent(); renderSidebar(); });
+  renderSidebar(); renderContent();
+  return true;
+}
+loadTree();
+loadAssets();
+refreshAssetStatus();
+</script>
+</body>
+</html>

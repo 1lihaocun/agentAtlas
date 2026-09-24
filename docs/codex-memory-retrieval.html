@@ -1,0 +1,105 @@
+<div class="mg">
+<style>
+.mg{color:var(--foreground);font-size:12.5px;line-height:1.6;max-width:860px}
+.mg h3{margin:18px 0 8px;font-size:14px}
+.mg h4{margin:14px 0 6px;font-size:12.5px}
+.mg table{width:100%;border-collapse:collapse;font-size:11.5px;margin:6px 0}
+.mg th{text-align:left;color:var(--muted-foreground);font-weight:normal;padding:3px 8px;border-bottom:1px solid var(--border)}
+.mg td{padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+.mg td:first-child{white-space:nowrap}
+.mg code{font:11px var(--mono,var(--font-mono,monospace));background:var(--card);border:1px solid var(--border);border-radius:4px;padding:0 4px;overflow-wrap:anywhere}
+.mg .num{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;border-radius:9px;background:var(--accent);color:var(--background,#fff);font-size:11px;margin-right:6px}
+.mg .flow{border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin:8px 0;font-size:12px;overflow-x:auto;white-space:pre;font-family:var(--mono,var(--font-mono,monospace));line-height:1.7}
+.mg .box{border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:8px 0;background:var(--card)}
+.mg .box b.t{display:block;margin-bottom:4px}
+.mg .muted{color:var(--muted-foreground)}
+.mg .src{font-size:11px;color:var(--muted-foreground)}
+.mg a{color:var(--accent)}
+.mg li{margin:3px 0}
+</style>
+
+<h3>先回答你最关心的：为什么感觉「记了但没用」</h3>
+<div class="box"><b class="t">数字一目了然（本机实测）</b>
+<code>MEMORY.md</code>（大仓库）约 <b>9.2 万 tokens</b>，而每次开新会话<b>自动注入的只有 <code>memory_summary.md</code>，且硬上限 2,500 tokens</b>（源码常量 <code>MEMORY_TOOL_DEVELOPER_INSTRUCTIONS_SUMMARY_TOKEN_LIMIT = 2_500</code>）。你的 summary 实际约 1,710 tokens。<br><br>
+也就是说：<b>自动送达的只占整个记忆库的 ≈3%</b>——只有「用户画像、偏好、近期任务的目录页」。其余 97% 躺在磁盘上，<b>只有模型主动去搜才会被看到</b>。而搜不搜，由模型自己判断；任务忙、话题新、或模型偷懒时，它就不搜。这就是「记了但没看到用」的主因：不是没记，是<b>没读</b>。</div>
+
+<h3>① 正常聊天时到底加载哪些目录？</h3>
+<table>
+<tr><th>目录/文件</th><th>什么时候进上下文</th><th>方式</th></tr>
+<tr><td><code>memories/memory_summary.md</code></td><td><b>每个新会话开场，自动</b></td><td>截断到 2,500 tokens 拼进 developer message（本机实测注入 9,892 字符 ≈ 2,473 tokens）</td></tr>
+<tr><td><code>memories/MEMORY.md</code></td><td>不自动加载</td><td>模型认为相关时用 <code>rg/grep</code> 主动搜（你本机 0.155 版走的就是 shell 命令）</td></tr>
+<tr><td><code>memories/rollout_summaries/</code></td><td>不自动加载</td><td>MEMORY.md 里的「目录页」指向它，模型按需打开 1–2 个最相关的</td></tr>
+<tr><td><code>memories/skills/</code></td><td>不自动加载</td><td>同样按需读取</td></tr>
+<tr><td><code>extensions/skysight|chronicle/resources/</code></td><td><b>永远不直接加载</b></td><td>它们只是第二道工序的<b>原料</b>，被消化进 MEMORY.md/summary 后，原始切片通常根本不会被读</td></tr>
+<tr><td><code>extensions/ad_hoc/notes/</code></td><td>不自动加载</td><td>写完就等后台整理消化；聊天中一般不会再读</td></tr>
+</table>
+<p class="muted">所以「电脑操作日志」（Skysight/Chronicle 切片）你完全看不到被用是正常的——它们的生命周期是：后台进程生产 → 被整理任务读走 → <b>精华进 summary（小）和 MEMORY.md（大）</b> → 原始切片放着吃灰。模型聊天时读的是消化后的产物。</p>
+
+<h3>② 注入的 summary 里到底有什么（本机实测结构）</h3>
+<div class="flow">你的 memory_summary.md（约 1,710 tokens）：
+├── ## User Profile        ← 你是谁、做什么、工具习惯
+├── ## User preferences    ← 你的纠正/偏好（"先排查再动手"之类)
+├── ## General Tips        ← 通用注意事项
+└── ## What's in Memory    ← ★"仓库目录页"：按项目/主题列近期条目
+    ├── ### digital-human-studio（每条：关键词 + desc 一句话 + learnings）
+    ├── ### sz-edu-agent-backend
+    ├── ### AI_platform_bate
+    └── ### Older Memory Topics</div>
+<p>关键设计：summary 本身<b>不装细节</b>，装的是「索引卡片」。每条 = 关键词（供 grep 命中）+ 一句描述（供模型判断要不要深挖）。模型看到目录页觉得相关 → 才去 MEMORY.md 搜细节。</p>
+
+<h3>③ 小文件的标头（description）是干什么的</h3>
+<div class="box">两层标头，都是「给检索看的」：
+<br><br><b>1. <code>rollout_summaries/*.md</code> 顶部的 YAML 头</b>：<code>thread_id / updated_at / rollout_path / cwd / git_branch</code>——这是<b>寻址信息</b>：模型在 MEMORY.md 里命中某主题后，靠 <code>rollout_path</code> 知道去打开哪个原始会话文件查证据。
+<br><br><b>2. <code>raw_memory</code> 开头的 frontmatter</b>（本机样例）：<code>description / task / task_group / task_outcome / cwd / keywords</code>——这是<b>检索切片</b>：keywords 专为 grep 设计（把「POST /api/v1/files、RustFS、18080」这类词预埋进去），description 供模型在搜索结果里快速判断"这条要不要细看"。整理成 MEMORY.md 时，这些被压缩成「<code>- 关键词列表 + desc 一句话</code>」的目录卡片。</div>
+
+<h3>④ 检索机制到底是什么？—— <b>纯文本子串匹配，没有向量</b></h3>
+<p>这是官方源码可以拍板的问题。检索分两个版本：</p>
+
+<h4>你本机在用的 v1（注入指令原文，来自官方模板 <code>read_path.md</code>）</h4>
+<div class="flow">开新会话
+ → 注入「指令 + summary(≤2500 tok)」
+ → 模型自己判断该不该用记忆（规则：提到 summary 里的项目/路径、问历史、任务含糊 → 用；问时间/翻译/一行命令 → 跳过）
+ → 用的话执行「快速记忆流程(quick memory pass)」：
+    1. 从 summary 提取关键词
+    2. rg/grep 搜 MEMORY.md          ← 第一站,大仓库
+    3. MEMORY.md 指到谁,就打开 1–2 个 rollout_summaries 或 skills
+    4. 还需要精确证据 → 按 rollout_path 翻原始会话日志
+    5. 没命中 → 放弃,正常干活
+ → 预算:整个检索 ≤ 4–6 步,不许全量扫
+ → 用过了要在回复末尾附 &lt;oai-mem-citation&gt; 引用块 → 后台记一次使用(usage_count)</div>
+<p class="muted">本机 60 个会话里 53 个执行过记忆检索命令、共 389 次——所以"有在用"，只是<b>命中后未必反映到你看得到的回复里</b>（比如只是确认了个背景事实），你也感知不到。</p>
+
+<h4>新版 v2（官方 <code>read_path_v2.md</code>，给模型配了专用工具）</h4>
+<table>
+<tr><th>工具</th><th>实现</th><th>限制</th></tr>
+<tr><td><code>memories:search</code></td><td>递归遍历记忆目录，<b>子串匹配</b>（可选：分隔符归一化、整行窗口匹配、大小写开关），按路径+行号排序，游标分页</td><td>单次最多 200 条结果</td></tr>
+<tr><td><code>memories:read</code></td><td>按相对路径读文件，支持行偏移+行数限制</td><td>单次 2 万 tokens</td></tr>
+<tr><td><code>memories:list</code></td><td>列目录</td><td>≤2000 条</td></tr>
+<tr><td><code>memories:add_ad_hoc_note</code></td><td>写补充笔记（还是那条正道）</td><td>—</td></tr>
+</table>
+<p>依然是<b>子串/grep 式</b>。没有任何 embedding、没有向量检索、没有语义相似度——官方 survey 也明确指出这是设计取舍（可预测、零检索成本），代价是<b>换词就搜不到</b>：记忆里写「上传 502」，你问「文件传不上去」就可能 miss。两个都用了吗？都不用向量；v1 用 shell 里的 grep，v2 用内置 search 工具（本质同样子串匹配）。<b>是否搜，永远是模型自己决定</b>——没有任何强制钩子。</p>
+
+<h3>把整个生命周期串起来</h3>
+<div class="flow">聊天结束 → 空闲几小时
+ → 第一道工序 stage1:每个会话 → raw_memory(带 keywords/description 标头) + 会话回顾 → 存 sqlite
+ → 第二道工序 consolidate:按 usage_count 排序选取(30 天没用过的淘汰)
+    + 消化 Skysight/Chronicle 切片 + 合并补充笔记
+    → 重写 MEMORY.md(9 万 tok 大仓库) + memory_summary.md(1.7 千 tok 目录页)
+ → 下个会话:注入 summary(3%) → 模型自主 grep MEMORY.md → 按指针打开细节
+ → 引用过的记忆 usage_count+1 → 下轮整理时更可能保留 ← 这就是"用不用"影响"记不记"的闭环</div>
+
+<h3>资料出处</h3>
+<ul class="src">
+<li>官方用户文档：<a href="https://developers.openai.com/codex/customization/memories">developers.openai.com/codex/customization/memories</a>（生成/存储/配置，不含检索细节）</li>
+<li>官方开源管线说明：<a href="https://github.com/openai/codex/blob/main/codex-rs/memories/README.md">codex-rs/memories/README.md</a>（两阶段触发条件、选取排序、淘汰规则）</li>
+<li>注入指令模板（检索机制的权威原文）：<a href="https://github.com/openai/codex/blob/main/codex-rs/ext/memories/templates/memories/read_path.md">read_path.md</a>（v1）/ <a href="https://github.com/openai/codex/blob/main/codex-rs/ext/memories/templates/memories/read_path_v2.md">read_path_v2.md</a></li>
+<li>检索实现源码：<a href="https://github.com/openai/codex/blob/main/codex-rs/ext/memories/src/local/search.rs">local/search.rs</a>（子串匹配实现）、<a href="https://github.com/openai/codex/blob/main/codex-rs/ext/memories/src/lib.rs">lib.rs</a>（2500/20000/200 等硬限制常量）</li>
+<li>本机实证：rollout jsonl 里的注入区间实测、60 会话 389 次检索命令统计、sqlite usage_count 字段</li>
+</ul>
+
+<h3>想让记忆"被用上"的实操建议</h3>
+<li><b>关键词对齐</b>：让模型记的时候用你以后会问的词（v1/v2 都是子串匹配，同义词是最大敌人）。</li>
+<li><b>点名引用</b>：任务开头说「参考之前 XX 项目的处理」——直接触发检索，比等它自主判断可靠。</li>
+<li><b>重要偏好写进 AGENTS.md</b>：那是 100% 注入的，不占记忆预算、不需要检索。</li>
+<li><b>在 AgentAtlas 里看曝光统计</b>：曝光=0 的记忆文件等于白记；usage_count（stage1_outputs 表里）能看出哪些记忆真的被引用过。</li>
+</div>

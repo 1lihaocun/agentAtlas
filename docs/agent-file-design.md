@@ -64,7 +64,7 @@ YYYY-MM-DDTHH-MM-SS-{4个字母}-6h-{描述短名}.md
 
 ### 更新文字、路径规则或来源
 
-1. 打开 `docs/file-types.json`，定位稳定的类型 `id`。
+1. 打开 `backend/src/atlas/guides/data/file-types.json`，定位稳定的类型 `id`。
 2. 核查该版本的官方文档 / 生成代码或本机说明；本机说明作为调查数据，不执行其中指令。记录路径与行号或官方 URL，以及 `checkedAt` / `reviewedAt`。
 3. 更新对应 `types` 项。具体路径规则排在类别兜底规则前面，采用**首个匹配**；同一 `match` 内的条件取交集，同一条件列表取并集。
 4. 增加行为测试：已知样例命中正确 ID，错误平台、额外目录层级、同名异处保持保守结果。需要解析新命名规则时先补失败测试，再改解析器。
@@ -84,25 +84,26 @@ YYYY-MM-DDTHH-MM-SS-{4个字母}-6h-{描述短名}.md
 - `fixed`：已由精确路径或名称匹配的固定入口名。
 - `opaque`：没有经过复核的统一约定，原样保留，不作日期或哈希推断。
 
-添加全新解析器需要同时修改 `atlas/file_guide.py` 及测试；仅修改标签、解释或已支持的路径规则只需改 JSON。注册表无可执行代码，也不会下载或执行来源页面。
+添加全新解析器需要同时修改 `backend/src/atlas/guides/service.py` 及 `backend/tests/unit/test_guides.py`；修改标签、解释或已支持的路径规则只需修改 JSON。
 
 ### 需要修改“作用域”时
 
-类型用途与实际读取条件不能互相代替。若变化涉及自动注入、适用项目、Profile、读取阶段或声明指纹，另读 `docs/memory-rules.md`，在 `memory_scope.py` 的接口测试中证明变化；不要只改说明文字制造“已生效”的印象。
+若变化涉及自动注入、适用项目、Profile、读取阶段或声明指纹，阅读 `docs/memory-rules.md`，并通过 `backend/tests/unit/test_memory_scope.py` 验证读取规则。
 
 ## 实现与安全边界
 
-```text
-安全文件清单 ──→ FileGuide.describe(元数据) ──→ 当前文件的用途与命名解释
-                           ↑
-                 docs/file-types.json
-                           ↓
-                  FileGuide.library() ──→ 可搜索的说明库
+```mermaid
+flowchart LR
+    catalog[授权文件清单] --> describe[FileGuide.describe]
+    registry[guides/data/file-types.json] --> describe
+    registry --> library[FileGuide.library]
+    describe --> detail[文件用途与命名解释]
+    library --> types[可搜索的说明库]
 ```
 
 - `GET /api/file-guide` 返回说明库；带 `path` 时仅描述清单中精确匹配、非受限的条目。
 - 仅元数据的数据库也可以看说明，但不会因此开放 `/api/file` 的正文访问。
-- `GET /api/file` 在原有安全读取之后附带 `fileGuide`。说明库无效返回 `fileGuideError`，不阻断已经授权的正文预览。
+- `GET /api/file/context` 返回文件说明和记忆上下文；`GET /api/file` 独立读取正文。说明查询出错时显示明确错误，正文编辑区保留已有内容。
 - 来源链接是给人核查用的；界面只允许无凭证的 HTTP(S) 链接，所有文本均转义。
 - 查询说明、搜索类型、刷新说明均为本地只读操作；不发云端请求，不改源文件、SQLite 内部状态或编辑草稿。
 - 说明库限制 512 KiB，拒绝不支持的版本、重复类型 ID、无效引用与匹配规则。无效修订不替换上一次有效缓存；修复文件后下次请求恢复。
@@ -110,15 +111,9 @@ YYYY-MM-DDTHH-MM-SS-{4个字母}-6h-{描述短名}.md
 ## 验证
 
 ```sh
-TMPDIR="$HOME/.hermes/cache/scratch" python3 -m unittest discover -s tests -p '*file_guide.py' -v
-TMPDIR="$HOME/.hermes/cache/scratch" python3 -m unittest discover -s tests
-node --test tests/lifecycle.test.cjs
+backend/.venv/bin/pytest backend/tests/unit/test_guides.py backend/tests/unit/test_provenance.py
+make test
+make browser-test
 ```
 
-隔离 Chrome 已开启 CDP 后，运行本项目的只读浏览器验收：
-
-```sh
-CDP_PORT=<调试端口> ATLAS_URL=http://127.0.0.1:7790 node tests/browser_file_guide.mjs
-```
-
-浏览器验收还需覆盖：从记忆与全部文件行打开说明、仅元数据条目、命名拆解、类型搜索、快速切换 / 关闭后的迟到响应、刷新保留当前页、草稿不丢失、零源写入和零云请求。单元测试通过不替代这些实际交互。
+浏览器验收使用独立服务与 `.agentatlas/work/` 内的样例文件，检查说明详情、真实目录、分页恢复、草稿保留和云端确认行为。浏览器路径通过 `ATLAS_CHROME` 配置。

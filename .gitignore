@@ -5,3 +5,11 @@ atlas.json
 .agentatlas/
 .hermes/
 .usage-cache.json
+node_modules/
+.venv/
+frontend/dist/
+*.egg-info/
+backend/dist/
+.env
+.env.*
+!.env.example

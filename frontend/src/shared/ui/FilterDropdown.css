@@ -1,0 +1,12 @@
+.filter-field { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 12px; }
+.filter-trigger { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 68px; max-width: min(230px, 65vw); }
+.filter-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-trigger > svg, .filter-option > svg { flex-shrink: 0; }
+.filter-dropdown { width: max-content; max-width: calc(100vw - 24px); }
+.filter-popup { display: flex; flex-direction: column; width: max-content; height: auto; min-width: min(68px, calc(100vw - 24px)); max-width: calc(100vw - 24px); min-height: 40px; max-height: 65dvh; padding-bottom: 8px; resize: both; overflow: hidden; background: white; border-radius: 8px; box-shadow: 0 6px 20px #0002; }
+.filter-search { padding: 8px; flex-shrink: 0; }
+.filter-option { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.filter-option-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.filter-option-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-option-name { font-weight: 650; color: #283e2d; }
+.filter-option-path { color: #747d77; font-size: 11px; font-family: ui-monospace, SFMono-Regular, monospace; }

@@ -1,154 +1,140 @@
 # AgentAtlas
 
-[![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://www.python.org/)
-[![deps](https://img.shields.io/badge/deps-stdlib%20only-success)](atlas/)
-[![build](https://img.shields.io/badge/build-none-orange)](web/index.html)
+在本机扫描、查看、检索和编辑智能体文件，分别展示文件存放位置、用途、作用范围与读取证据。
 
-智能体运行时文件的本地地图集 —— 把散落在各工具目录里的 AGENTS.md / CLAUDE.md、记忆、技能、命令、会话和日志，统一扫描成一张可导航、可检索、可审阅的地图，并区分文件**所在位置**、**设计用途**与**实际生效方式**。
+## 运行
 
-> The local-first atlas for AI agent runtime files: instructions, memories, skills, sessions — mapped, searched and reviewed across agent tools.
+需要 Python 3.12 以上、Node.js 22.12 以上和 uv。前后端依赖分别由 `backend/uv.lock` 与 `frontend/package-lock.json` 管理。
 
-![AgentAtlas 界面](docs/screenshot.png)
-
-## 为什么
-
-智能体工具越装越多，指令和记忆文件也越散越乱：同一份 AGENTS.md 在 N 个仓库里各有一份漂移的副本；记忆文件写在哪、被谁读、管多大范围，各平台规则都不同。AgentAtlas 在本机把这些文件扫成一张图：
-
-- 指令文件按 **根目录 → 项目 → 子目录** 分级展示，相同内容的副本按哈希归组；
-- 记忆文件按**已核对的作用域规则**展示（适用项目 / Profile / 读取者 / 触发条件），不把「存放目录」冒充「生效范围」；
-- 会话日志与生效栈做交叉统计，给出指令文件的**推算曝光**与**淘汰审阅**线索。
-
-本地优先：扫描、关键词检索、编辑全部离线；可选的云端功能（语义检索、翻译）逐次确认发送范围。
-
-## 功能
-
-- **限定范围扫描**：在指定根目录和深度内发现智能体文件，排除凭证、缓存、生成物；重复副本按哈希归组
-- **层级地图**：根目录 → 项目 → 子目录三级树，每级显示文件数、重复数、总字节、最近修改时间
-- **全部文件库**：平台 × 用途 × 项目三维筛选；指令、记忆、技能、参考、命令、钩子、配置、会话、日志统一入库
-- **记忆作用域**：按已核实的读取规则展示作用层级、适用项目/Profile、读取者与条件；可切换「按存放目录」浏览
-- **文件说明**：每个文件类型给出路径约定、用途、生成/读取角色、命名拆解与来源；说明库独立于代码，可热刷新
-- **正文检索**：本地关键词全文检索（带路径与行号）；可配置 `/embeddings` 兼容服务做语义/混合检索，向量存本机 SQLite
-- **浏览与编辑**：查看原文、单 section 保存；写盘前自动备份，SHA-256 冲突检测，大文件截断保护
-- **曝光与淘汰审阅**：会话日志 × 生效栈推算指令曝光，审阅决定绑定内容版本；只记录决定，不动原文件
-- **可选 LLM 翻译**：对可编辑文件调用配置的云端模型翻译，译文哈希缓存
-
-## 覆盖的文件类型
-
-| 文件 | 归属工具 |
-|---|---|
-| `AGENTS.md` | Codex / 通用标准 |
-| `CLAUDE.md` | Claude Code |
-| `GEMINI.md` | Gemini CLI |
-| `QWEN.md` | Qwen Code |
-| `.cursorrules` | Cursor（旧） |
-| `.cursor/rules/*.mdc` | Cursor（新） |
-| `.windsurfrules` | Windsurf |
-| `.clinerules` | Cline |
-| `.github/copilot-instructions.md` | GitHub Copilot |
-
-文件库的范围不止指令：各平台的状态目录（`~/.claude`、`~/.codex`、记忆/技能/命令/钩子/会话/日志等）经 `atlas/platforms/` 注册表白名单纳入。
-
-## 快速开始
+在仓库根目录执行：
 
 ```bash
-git clone https://github.com/<user>/agentAtlas.git
-cd agentAtlas
-
-# 1. 按需编辑扫描范围（默认已包含 Code、.claude、.codex 等常用目录）
-$EDITOR atlas/scan.py   # 修改 ROOTS
-
-# 2. 扫描（或启动后点「重新扫描」）
-python3 atlas/scan.py
-
-# 3. 启动服务
-python3 atlas/serve.py
-# 打开 http://127.0.0.1:7788
+make install
+make build
+make serve
 ```
 
-要求：Python 3.9+（`atlas/eval/` 用了内置泛型语法），零第三方依赖，无构建步骤。
+打开 `http://127.0.0.1:7788`。后端提供 React 构建产物与 `/api` 接口；页面地址支持直接访问、刷新、浏览器前进和后退。
 
-使用须知：
+开发时执行 `make dev`，打开 `http://127.0.0.1:5173`。该命令同时启动 FastAPI 与 Vite，前端通过 `/api` 代理访问后端，退出命令时关闭这两个进程。Python 代码修改后需要重新启动开发命令；React 代码通过 Vite 更新。
 
-- 后端**不热重载**：修改 `atlas/` 下 Python 代码后需重启 `serve.py`；`web/` 与 `docs/` 静态文件刷新页面即生效
-- 服务固定监听 `127.0.0.1:7788`，验证时确认浏览器实际打开的地址
-- 不要让两个长期运行的实例共用同一个 `.agentatlas/`（各自缓存清单与任务状态，索引任务不跨进程协调）
+## 功能与目录
 
-## 平台注册表（新增平台 = 加一个目录）
+| 目录 | 职责 |
+| --- | --- |
+| `frontend/src/app/` | 路由、应用布局、查询容器、跨功能组件组合与样式 |
+| `frontend/src/features/assets/` | 全部文件、平台和用途筛选、分页 |
+| `frontend/src/features/instructions/` | 指令地图、用户级指令、项目与目录导航、Codex 读取规则 |
+| `frontend/src/features/memories/` | 记忆作用域、真实存放目录、元数据与数量统计 |
+| `frontend/src/features/files/` | 文件查看、编辑草稿、章节保存、翻译、外部编辑器 |
+| `frontend/src/features/search/` | 关键词、语义与混合检索、向量索引执行与发送确认 |
+| `frontend/src/features/reviews/` | 使用证据、保留与延后审阅 |
+| `frontend/src/features/duplicates/` | 重复文件分组与同步 |
+| `frontend/src/features/file-guide/` | 类型、命名字段与生成来源说明 |
+| `frontend/src/features/jobs/` | 扫描入口、扫描与索引任务状态 |
+| `frontend/src/shared/` | HTTP 客户端、公共类型、格式化、表格、分页和对话框 |
+| `backend/src/atlas/app/`、`http/`、`core/` | 应用组装、HTTP 约束、配置、原子写入与事务存储 |
+| `backend/src/atlas/assets/`、`instructions/`、`memories/` | 文件发现、指令扫描、记忆规则与目录统计 |
+| `backend/src/atlas/files/`、`search/`、`reviews/` | 源文件读写、检索、读取证据和审阅 |
+| `backend/src/atlas/duplicates/`、`guides/`、`settings/`、`translation/`、`jobs/` | 对应功能的路由与业务服务 |
+| `backend/src/atlas/platforms/` | 17 个平台的独立目录规则与注册表 |
+| `backend/src/atlas/evaluation/` | 数据集、评分、隔离执行与评测命令行 |
+| `backend/tests/` | 真实文件、SQLite、模块与 HTTP 回归检查 |
+| `tests/e2e/` | 真实浏览器交互验收 |
+| `tests/fixtures/` | 纳入版本管理的样例文件 |
+| `scripts/` | 开发启动与工程维护命令 |
 
-平台目录、裁剪规则、类别提示与记忆作用域规则集中在 `atlas/platforms/`：每个平台一个子包，在 `__init__.py` 里声明 `PLATFORM = Platform(...)`，注册表启动时自动发现。新增平台不改任何现有模块：
+前端使用 React、TypeScript、React Router、TanStack Query、Ant Design 和 Radix UI。下拉菜单组件及使用约定见 [前端开发规范](frontend/README.md)。ESLint 检查功能目录之间的导入边界：功能依赖本功能与公共模块，跨功能组合由 `app` 负责。
 
-1. 新建 `atlas/platforms/<name>/__init__.py`，声明 `Platform(id=..., user_roots=(...), ...)`；
-2. 已核对官方读取规则的，再实现 `resolve_memory(ctx)`（参考 `claude/`、`codex/`、`hermes/`、`openclaw/`）；规则未核实的保持缺省，界面按「未知」诚实展示；
-3. 需要进入指令地图的目录设 `instruction_scan=True`（含 `scan_roots`），仅入文件库的用 `user_roots`。
+后端使用 FastAPI、Pydantic 和 Uvicorn。每项业务拥有自己的路由，应用层创建服务并组织扫描、保存和索引流程。JSON、YAML、dotenv 和 Markdown 使用对应解析库。
 
-已登记 17 个平台：claude、codex、hermes、gemini、cursor、windsurf、qwen、cline、roo、continue、opencode、copilot、shared、openclaw、workbuddy、zcode、skilltools。
+## 页面地址
 
-## 结构
+| 页面 | 地址 |
+| --- | --- |
+| 全部文件 | `/assets` |
+| 指令地图、目录、用户级指令 | `/instructions`、`/instructions/directory?path=…`、`/instructions/user` |
+| 记忆作用域、存放目录 | `/memories/scope`、`/memories/directory?path=…` |
+| 审阅、重复文件 | `/reviews`、`/duplicates` |
+| 文件说明 | `/file-types`、`/file-types/:typeId` |
+| 独立文件详情 | `/files?path=…` |
 
-```
-agentAtlas/
-├── atlas/
-│   ├── scan.py           # 扫描器：发现、去重、分级 → atlas.json
-│   ├── serve.py          # 本地服务：静态页 + REST API（仅标准库）
-│   ├── catalog.py        # 平台资产目录与项目身份判定
-│   ├── platforms/        # 平台注册表：一平台一子包，自动发现
-│   ├── memory_scope.py   # 记忆作用域规则解析
-│   ├── memory_metadata.py / memory_storage.py
-│   ├── search_index.py   # 关键词与向量检索索引
-│   ├── sections.py       # Markdown section 解析与单组件保存
-│   ├── storage.py        # 安全清单与文件访问控制
-│   ├── lifecycle.py      # 备份、审阅决定、编辑日志
-│   ├── provenance.py     # 文件说明（provenance）服务
-│   ├── usage.py          # 曝光统计（会话日志 × 生效栈）
-│   ├── retirement.py     # 淘汰审阅
-│   └── eval/             # 评测脚手架（数据集 / 运行器 / 评分器 / 隔离）
-├── web/
-│   ├── index.html        # 单页界面（原生 HTML/CSS/JS）
-│   └── lifecycle.js
-├── docs/                 # file-types.json、设计文档、规则文档
-├── tests/                # unittest + node:test + CDP 浏览器测试
-└── atlas.json            # 扫描产物（.gitignore，首次扫描生成）
-```
+筛选、页码和目录保存在 URL。列表页面通过 `file` 参数打开文件侧栏，`panel` 参数选择文件内容、章节或翻译。分页默认 50 条，支持 25、50、100 条。记忆目录分别统计本层文件和包含子目录的文件。
 
-## 隐私与安全
+未保存的文件草稿保存在应用布局中。切换页面和关闭文件侧栏后，可以从“未保存修改”重新打开；刷新或关闭浏览器会触发未保存提示。文件保存使用 SHA-256 检查源文件版本，并在写入前保存备份。
 
-- **默认完全本地**：扫描、关键词检索、浏览编辑不联网
-- 密钥与凭证路径在扫描时排除；配置文件中的敏感内容另行检查（检测不能替代人工审查）
-- 编辑安全：保存前自动备份到 `.agentatlas/lifecycle/backups/`，需携带打开时的 SHA-256，源文件被外部修改则返回冲突；截断预览禁止保存
-- 云端功能（语义检索、翻译）**逐次确认发送范围**：会话、日志、配置默认不在发送范围；任务进行中改设置会即时撤销授权；API Key 存 `.agentatlas/embedding-key`（权限 `0600`），不回传浏览器
-- 只读类别（会话、日志、配置、平台内部数据库）不开放编辑
-- `.agentatlas/`（正文索引、向量、设置、备份）与 `atlas.json` 已列入 `.gitignore`，不要上传或分享
+## 本地配置与数据
 
-## 测试
+`atlas --workspace /绝对路径 serve` 显式选择数据所在目录。默认使用执行命令时的目录；`make serve` 使用仓库根目录，`make dev` 默认使用仓库根目录，也支持通过 `ATLAS_WORKSPACE` 指定独立目录。
+
+| 配置 | 含义 |
+| --- | --- |
+| `ATLAS_WORKSPACE` | 清单与运行数据所在目录，可用 `--workspace` 覆盖 |
+| `ATLAS_HOME` | 扫描使用的用户目录，默认当前用户目录 |
+| `ATLAS_SCAN_ROOTS` | JSON 数组，指定指令与项目扫描范围 |
+| `ATLAS_MAX_DEPTH` | 扫描深度，默认 9 |
+| `ATLAS_PORT` | 后端端口，默认 7788，可用 `serve --port` 覆盖 |
+| `ATLAS_FRONTEND_PORT` | `make dev` 的前端端口，默认 5173 |
+| `ATLAS_FRONTEND_DIR` | 前端构建目录，可用 `serve --frontend-dir` 覆盖 |
+| `ATLAS_GUIDE_PATH` | 外部文件说明库路径 |
+| `ATLAS_CODEX_HOME` | 使用证据与生成来源的 Codex 数据目录 |
+| `ATLAS_ALLOWED_ORIGINS` | 开发代理允许的本机来源，JSON 数组 |
+
+例如：
 
 ```bash
-# 单元与逻辑测试
-python3 -m unittest discover -s tests -v
-node --test tests/lifecycle.test.cjs
-
-# 真实浏览器测试（需独立 headless Chrome + CDP）
-export CDP_PORT=<调试端口> ATLAS_URL=http://127.0.0.1:7788
-node tests/browser_file_guide.mjs && node tests/browser_memory_storage.mjs && node tests/browser_navigation.mjs
+ATLAS_SCAN_ROOTS='["/Users/yourname/Documents/Code"]' make serve
+backend/.venv/bin/atlas --workspace "$PWD" scan
+backend/.venv/bin/atlas eval --help
 ```
 
-注：macOS 开系统代理时，给 unittest 加 `no_proxy='*'`，否则同源自检会被代理拦截产生假失败；若隔离类测试因解释器白名单失败，改用系统 Python（`/usr/bin/python3`）。自动化 embedding 测试使用本地测试服务，不消耗云端额度。
+### 模型配置
 
-## 文档
+翻译与 embedding 配置统一保存在工作目录根部的 `.env`（`make serve` 默认使用仓库根目录；指定 `--workspace` 时使用该目录的 `.env`）。首次配置可复制 `.env.example` 为 `.env`，然后填写模型名称、服务地址与密钥。不要覆盖已有的 `.env`。
 
-| 文档 | 内容 |
-|---|---|
-| [docs/file-types.json](docs/file-types.json) | 文件类型/命名说明库（唯一内容源，界面可热刷新） |
-| [docs/agent-file-design.md](docs/agent-file-design.md) | 文件设计模型、命名与显示标题的区别、说明库维护流程 |
-| [docs/memory-rules.md](docs/memory-rules.md) | 记忆作用域与读取规则的保守解释 |
-| [docs/logic-review.md](docs/logic-review.md) | 逻辑审查与修复记录 |
-| [docs/provenance-research.md](docs/provenance-research.md) | 溯源机制调研 |
+| 配置 | 含义 |
+| --- | --- |
+| `ATLAS_TRANSLATION_PROVIDER` | 翻译服务类型：openai、glm、zai、openrouter 或 ollama，默认 openai |
+| `ATLAS_TRANSLATION_BASE_URL` | 翻译服务的 API 基础地址，留空使用该服务类型的默认地址 |
+| `ATLAS_TRANSLATION_MODEL` | 翻译模型名称 |
+| `ATLAS_TRANSLATION_API_KEY` | 翻译密钥，Ollama 可留空 |
+| `ATLAS_EMBEDDING_BASE_URL` | 兼容 OpenAI embeddings 接口的 API 基础地址 |
+| `ATLAS_EMBEDDING_MODEL` | Embedding 模型名称 |
+| `ATLAS_EMBEDDING_API_KEY` | Embedding 密钥 |
+| `ATLAS_EMBEDDING_DIMENSIONS` | 向量维度，留空由服务决定 |
+| `ATLAS_EMBEDDING_BATCH_SIZE` | 每批文本数量，默认 16，范围 1–128 |
+| `ATLAS_EMBEDDING_CATEGORIES` | 允许发送的文件类别，以英文逗号分隔；空值表示不允许发送任何类别 |
 
-## Roadmap
+模型配置只读取这一个 `.env`，不继承进程环境变量、不读取 `~/.hermes/config.yaml` 或 `~/.hermes/.env`，也不再使用 `.agentatlas/settings.json` 和 `.agentatlas/embedding-key`。旧版本的配置需要移入对应字段；未配置模型不影响本地扫描与关键词检索。上表之外的运行参数仍通过命令行或进程环境变量传入。
 
-- [ ] Tauri 桌面壳
-- [ ] GEPA 式自动优化：真实评测集 + 隔离运行环境 + 预算确认（`atlas/eval/` 已有脚手架）
-- [ ] 更多平台的记忆作用域规则核实与登记
+模型配置只通过手工编辑 `.env` 修改，前端不提供配置表单或配置写入接口。`.env` 已加入 Git 忽略规则，建议权限设为 `0600`；字段按字面值解析，不展开 `${变量}`。修改后下一次操作读取新配置，无需重启；运行中的向量任务和分块翻译检测到文件变化会停止后续请求，需要重新确认。已经发出的请求无法撤回。
 
-## License
+“全部文件”的检索工具栏保留“建立向量索引”按钮，点击后只读展示当前服务、模型和允许发送的文件类别，确认后才启动任务。每次至多处理 256 个待索引片段，不受列表筛选条件限制；任务进度和错误显示在顶部。配置缺失或没有允许发送的类别时，禁止执行并提示修改 `.env`。旧的 `/settings` 地址跳转到 `/assets`。
 
-TBD
+文件位置保持在数据目录中：`atlas.json` 为指令清单；`.agentatlas/assets.json` 为文件清单；`.agentatlas/search.sqlite3` 为本地检索索引；`.agentatlas/lifecycle/` 保存编辑日志、备份与审阅记录。同一数据目录通过进程锁限制为一个服务实例。
+
+服务限定本机地址，并校验 Host、Origin 和跨站请求。文件访问经过清单授权，敏感路径、符号链接替换、只读类型和截断内容分别处理。设置接口仅返回密钥是否已经配置。
+
+语义检索、向量索引和翻译需要在页面确认后执行。检索结果保存为有期限的本地快照，翻页与浏览器刷新读取结果快照。
+
+## 验证
+
+```bash
+make check
+make test
+make browser-test
+```
+
+浏览器检查使用本机 Chrome；默认路径为 macOS 的 Chrome 安装位置，其他环境通过 `ATLAS_CHROME` 指定可执行文件。测试启动独立服务并创建真实样例文件，所有运行数据与报告位于已忽略的 `.agentatlas/work/`。测试不调用外部模型。
+
+`make build` 输出 `frontend/dist/` 和后端 Python 安装包。部署目录需要同时包含前端构建产物；后端可通过 `--frontend-dir` 指向该目录。Python 安装包内包含平台注册信息和文件类型说明库。接口文档位于 `/api/docs`，OpenAPI 位于 `/api/openapi.json`。
+
+## 维护资料
+
+- [目录与路由设计](docs/restructure-plan.md)
+- [领域定义](CONTEXT.md)
+- [文件说明维护](docs/agent-file-design.md)
+- [记忆读取规则](docs/memory-rules.md)
+- [文件类型说明库](backend/src/atlas/guides/data/file-types.json)
+
+新增平台时，在 `backend/src/atlas/platforms/<name>/` 声明平台路径、裁剪规则与读取规则，并补充对应回归检查。修改文件说明内容时，维护 `guides/data/file-types.json`；调整解析行为时，同时修改 `guides/service.py` 与其测试。
